@@ -8,6 +8,8 @@
 	border-radius: 8px;
 	padding: 10px;
     font-size: 12px;
+    pointer-events: none; 
+    opacity: 0.8;
 }
 .__css_viewer_header{
 	font-weight: bold;

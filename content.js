@@ -134,10 +134,31 @@ function CssViewer(){
     
 	var showPopupBox = function(x, y){
 		var popup = getPopupBox();
+        var top = y + 5;
+        var left = x + 5;
 		popup.css({
-			top: y + 5 + 'px',
-			left: x + 5 + 'px',
+			// top: '-10000em',
+			// left: '-10000em',
 			display: 'block'
+		});
+        var rect = popup.getBoundingClientRect();
+        var docWidth = document.documentElement.offsetWidth;
+        var docHeight = document.documentElement.offsetHeight;
+        if(rect.width + left >= docWidth){
+            left = docWidth - rect.width - 5;
+        }
+        if(rect.height + top >= docHeight){//这里还有优化的地方
+            top = docHeight - rect.height - 5;
+        }
+        if(left < 5){
+            left = 5;
+        }
+        if(top < 5){
+            top = 5;
+        }
+        popup.css({
+            top: top + 'px',
+			left: left + 'px'
 		});
         popupBoxShowing = true;
 	}
@@ -177,7 +198,7 @@ function CssViewer(){
 	
     var onDocumentMouseMove = function(e){
         if(popupBoxShowing){
-            showPopupBox(e.pageX, e.pageY);
+            showPopupBox(e.pageX , e.pageY );
         }
     }
     
