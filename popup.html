@@ -25,14 +25,14 @@
 	<div class="__css_viewer_header"><%=i %></div>
 	<div class="__css_viewer_content">
 		<% 
-			var styles = rules[i].split(';');
+			var styles = rules[i].split(";");
 			var param, index;
 			for(var s in styles){ 
 				param = styles[s].trim();
 				if(!param){
 					continue;
 				}
-				index = param.indexOf(':');
+				index = param.indexOf(":");
 		%>
 		<div class="__css_viewer_item">
 			<div class="__css_viewer_key"><%=param.substring(0, index) %></div>

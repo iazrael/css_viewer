@@ -16,7 +16,10 @@ function CssViewer(){
 			var styles = rules[i].split(";");\
 			var param, index;\
 			for(var s in styles){ \
-				param = styles[s];\
+				param = styles[s].trim();\
+				if(!param){\
+					continue;\
+				}\
 				index = param.indexOf(":");\
 		%>\
 		<div class="__css_viewer_item">\
@@ -76,10 +79,10 @@ function CssViewer(){
 		return wraper;
 	}
 	
-	var removeWraper = function(){
+	var hideWraper = function(){
 		var wraper = getWraper();
 		if(wraper){
-			document.body.removeChild(wraper);
+			wraper.css({display: 'none' });
 		}
 	}
 	
@@ -106,16 +109,20 @@ function CssViewer(){
 				selector = rule.selectorText;
 				if(el.webkitMatchesSelector(selector)){
 					style = rule.style.cssText;
-					styleList[selector] = style;
+                    if(styleList[selector]){
+                        styleList[selector] += style;
+                    }else{
+                        styleList[selector] = style;
+                    }
 				}
 			}
 		}
 		return styleList;
 	}
 	
-	var getPopupBox = function(){
+	var getPopupBox = function(createFlag){
 		var popup = document.getElementById(POPUPBOX_ID);
-		if(!popup){
+		if(!popup && createFlag){
 			popup = document.createElement('div');
 			popup.id = POPUPBOX_ID;
 			document.body.appendChild(popup);
@@ -123,14 +130,25 @@ function CssViewer(){
 		return popup;
 	}
 	
+    var popupBoxShowing = false;
+    
 	var showPopupBox = function(x, y){
 		var popup = getPopupBox();
 		popup.css({
-			top: x + 'px',
-			left: y + 'px',
+			top: y + 5 + 'px',
+			left: x + 5 + 'px',
 			display: 'block'
 		});
+        popupBoxShowing = true;
 	}
+    
+    var hidePopupBox = function(){
+        var popup = getPopupBox();
+        if(popup){
+            popup.css({ display: 'none' });
+        }
+        popupBoxShowing = false;
+    }
 	
     var onDocumentMouseOver = function(e){
         var target = e.target;
@@ -138,7 +156,7 @@ function CssViewer(){
         var wraper = getWraper(true);
 		var scrollTop = getScrollTop();
 		var scrollLeft = getScrollLeft();
-        wraper.innerHTML = getElementDesName(target);
+        // wraper.innerHTML = getElementDesName(target);
         wraper.css({
             'width': rect.width + 'px',
             'height': rect.height + 'px',
@@ -147,24 +165,38 @@ function CssViewer(){
             'display': 'block'
         });
 		var styleList = getComputedStyle(target);
-		var popup = getPopupBox();
+		var popup = getPopupBox(true);
 		var html = template(POPUPBOX_HTML_TEMPLATE, {rules: styleList});
-		popup.innerHTML = html;
-		showPopupBox(e.pageX, e.pageY);
+        if(html){
+            popup.innerHTML = html;
+            showPopupBox(e.pageX, e.pageY);
+        }else{
+            hidePopupBox();
+        }
     }
 	
+    var onDocumentMouseMove = function(e){
+        if(popupBoxShowing){
+            showPopupBox(e.pageX, e.pageY);
+        }
+    }
+    
 	this.start = function(){
         if(!this._isStart){
             this._isStart = true;
             document.addEventListener('mouseover', onDocumentMouseOver, false);
+            document.addEventListener('mousemove', onDocumentMouseMove, false);
+            
         }
     }
 	
 	this.stop = function(){
         if(this._isStart){
             this._isStart = false;
-            removeWraper();
+            hideWraper();
+            hidePopupBox();
             document.removeEventListener('mouseover', onDocumentMouseOver, false);
+            document.removeEventListener('mousemove', onDocumentMouseMove, false);
         }
     }
     this.isStart = function(){
