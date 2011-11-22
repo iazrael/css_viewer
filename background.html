@@ -2,6 +2,7 @@
 <head>
 <script>
     chrome.browserAction.onClicked.addListener(function(tab){
+		chrome.tabs.insertCSS(null, {file: 'popup.css'});
         chrome.tabs.executeScript(null, {file: 'content.js'});
     });
 </script>

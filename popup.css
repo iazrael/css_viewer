@@ -1,0 +1,24 @@
+#__css_viewer_popupbox__{
+	display: none;
+	z-index: 2147483647; 
+	position: absolute;
+	max-width: 300px;
+	background: #293134;
+	border: 2px solid rgba(103, 103, 33, 0.7);
+	border-radius: 8px;
+	padding: 10px;
+}
+.__css_viewer_header{
+	font-weight: bold;
+	color: #93C763;
+}
+
+.__css_viewer_key{
+	display: inline-block;
+	color: #678CB1;
+}
+
+.__css_viewer_value{
+	display: inline-block;
+	color: #fff;
+}
