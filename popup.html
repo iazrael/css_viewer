@@ -4,22 +4,18 @@
 </head>
 <body>
 <div id="__css_viewer_popupbox__" >
-<% for(var i in rules){ %>
-	<div class="__css_viewer_header"><%=i %></div>
+<% for(var i = rules.length - 1; i >= 0; i--){ %>
+	<div class="__css_viewer_header"><%=rules[i].selector %></div>
 	<div class="__css_viewer_content">
 		<% 
-			var styles = rules[i].split(";");
-			var param, index;
+			var styles = rules[i].style;
+			var style;
 			for(var s in styles){ 
-				param = styles[s].trim();
-				if(!param){
-					continue;
-				}
-				index = param.indexOf(":");
+				var style = styles[s];
 		%>
-		<div class="__css_viewer_item">
-			<div class="__css_viewer_key"><%=param.substring(0, index) %></div>
-			<div class="__css_viewer_value"><%=param.substring(index) %></div>
+		<div class="__css_viewer_item <%=style.isOverride ? "__css_viewer_item_override" : "" %>">
+			<div class="__css_viewer_key"><%=s %></div><span class="__css_viewer_sign">: </span>
+			<div class="__css_viewer_value"><%=style.value %></div><span class="__css_viewer_sign">;</span>
 		</div>
 		<% } %>
 	</div>

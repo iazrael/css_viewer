@@ -2,17 +2,19 @@
 
 function CssViewer(){
     this._isStart = false;
+    this.styleSheetList = [];
+    this.popupBoxShowing = false;
+    var context = this;
     
 	var WRAPER_ID = '__css_viewer_wraper__';
 	var WRAPER_STYLE_TEXT = 'box-sizing: border-box; pointer-events: none; position: absolute; display: none; border: red dotted 2px; color: red; z-index: 2147483647; ';
 	
 	var POPUPBOX_ID = '__css_viewer_popupbox__';
 	var POPUPBOX_CSS_STYLE = '';
-	var POPUPBOX_HTML_TEMPLATE = '<% for(var i in rules){ %><div class="__css_viewer_header"><%=i %></div><div class="__css_viewer_content"><% var styles = rules[i].split(";");var param, index;for(var s in styles){ param = styles[s].trim();if(!param){continue;}index = param.indexOf(":");%><div class="__css_viewer_item"><div class="__css_viewer_key"><%=param.substring(0, index) %></div><div class="__css_viewer_value"><%=param.substring(index) %></div></div><% } %></div><% } %>';
+	var POPUPBOX_HTML_TEMPLATE = '<% for(var i = rules.length - 1; i >= 0; i--){ %><div class="__css_viewer_header"><%=rules[i].selector %></div><div class="__css_viewer_content"><% var styles = rules[i].style;var style;for(var s in styles){ var style = styles[s];%><div class="__css_viewer_item <%=style.isOverride ? "__css_viewer_item_override" : "" %>"><div class="__css_viewer_key"><%=s %></div><span class="__css_viewer_sign">: </span><div class="__css_viewer_value"><%=style.value %></div><span class="__css_viewer_sign">;</span></div><% } %></div><% } %>';
 	
 	var templateCache = {};
 	
-	var styleSheetList;
 	
 	HTMLElement.prototype.css = function(style){
 		var el = this;
@@ -65,119 +67,6 @@ function CssViewer(){
 	var getScrollLeft = function(){
 		return Math.max(document.documentElement.scrollLeft, document.body.scrollLeft);
 	}
-	
-	var parseCss = function(cssText){
-		cssText = cssText.replace(/\/\*.*\*\//g, '');
-		var list = [];
-		var partList = cssText.split('}');
-		var item, part, selector, values;
-		for(var i in partList){
-		// try{
-			part = partList[i].trim();
-			if(!part){
-				continue;
-			}
-			part = part.split('{');
-			selector = part[0].trim();
-			values = part[1].trim();
-			item = {
-				selector: selector,
-				style: {}
-			};
-			var p = /\s*(.+?):\s*(.+?);/g;
-			var m;
-			while(m = p.exec(values)){
-				item.style[m[1]] = m[2];
-			}
-			list.push(item);
-			// }catch(e){
-				// console.log(partList[i]);
-			// }
-		}
-		return list;
-	}
-	
-	var analysisStyleList = function(){
-		var sheet;
-		for(var i = 0, len = styleSheetList.length; i < len; i++){
-			sheet = styleSheetList[i];
-			if(!sheet.url){
-				sheet = styleSheetList[i] = {
-					cssText: sheet
-				}
-				// console.log(sheet.cssText);
-			}
-			sheet.cssList = parseCss(sheet.cssText);
-		}
-		console.log(styleSheetList);
-	}
-	
-	var downloadFile = function(url, id){
-		var xhr = new XMLHttpRequest();
-		xhr.open("GET", url, false);//为了逻辑更简单点, 同步加载
-		xhr.onreadystatechange = function() {
-			if (xhr.readyState == 4 && xhr.status == 200) {
-				styleSheetList[id] = {
-					url: url,
-					cssText: xhr.responseText
-				};
-			}
-		}
-		xhr.send();
-	}
-	var loadLinkStyleSheet = function(callback){
-		var originalCursor = document.body.style.cursor;
-		document.body.style.cursor = 'wait';
-		
-		var styleSheets = document.styleSheets;
-		styleSheetList = [];
-		styleSheetList[styleSheets.length - 1] = 0;
-		var url;
-		for(var i = 0, slen = styleSheets.length; i < slen; i++){
-			sheet = styleSheets[i];
-			if(sheet.ownerNode.constructor === HTMLStyleElement){//这是个style标签
-				styleSheetList[i] = sheet.ownerNode.innerHTML;
-			}else{/*  if(sheet.ownerNode.constructor === HTMLLinkElement) */
-				//link 标签, 发请求下载css文件
-				url = sheet.href.trim();
-				if(url){
-					downloadFile(url, i);
-				}
-				
-			}
-		}
-		
-		analysisStyleList();
-		document.body.style.cursor = originalCursor;
-		callback && callback();
-	}
-	
-	var getComputedStyle = function(el){
-		var styleSheets = document.styleSheets,
-			styleList = {}, 
-			sheet, rules, rule, selector, style;
-		for(var i = 0, slen = styleSheets.length; i < slen; i++){
-			sheet = styleSheets[i];
-			if(!sheet.rules){
-				continue;
-			}
-			rules = sheet.rules;
-			for(var j = 0, rlen = rules.length; j < rlen; j++){
-				rule = rules[j];
-				selector = rule.selectorText;
-				if(el.webkitMatchesSelector(selector)){
-					style = rule.style.cssText;
-                    if(styleList[selector]){
-                        styleList[selector] += style;
-                    }else{
-                        styleList[selector] = style;
-                    }
-				}
-			}
-		}
-		return styleList;
-	}
-	
 	var getPopupBox = function(createFlag){
 		var popup = document.getElementById(POPUPBOX_ID);
 		if(!popup && createFlag){
@@ -188,7 +77,7 @@ function CssViewer(){
 		return popup;
 	}
 	
-    var popupBoxShowing = false;
+    
     
 	var showPopupBox = function(x, y){
 		var popup = getPopupBox();
@@ -218,7 +107,7 @@ function CssViewer(){
             top: top + 'px',
 			left: left + 'px'
 		});
-        popupBoxShowing = true;
+        context.popupBoxShowing = true;
 	}
     
     var hidePopupBox = function(){
@@ -226,8 +115,134 @@ function CssViewer(){
         if(popup){
             popup.css({ display: 'none' });
         }
-        popupBoxShowing = false;
+        context.popupBoxShowing = false;
     }
+	var parseCss = function(cssText){
+		var list = [];
+		var partList = cssText.split('}');//TODO @import 的兼容
+		var item, part, selector, values;
+		for(var i in partList){
+			part = partList[i].trim();
+			if(!part){
+				continue;
+			}
+			part = part.split('{');
+			selector = part[0].trim();
+			values = part[1].trim();
+			item = {
+				selector: selector,
+				style: {}
+			};
+			var p = /\s*(.+?):\s*(.+?);/g;
+			var m;
+			while(m = p.exec(values)){
+				item.style[m[1]] = m[2];
+			}
+			list.push(item);
+		}
+		return list;
+	}
+	
+	var analysisStyleList = function(){
+		var sheet;
+        var styleSheetList = context.styleSheetList;
+		for(var i = 0, len = styleSheetList.length; i < len; i++){
+			sheet = styleSheetList[i];
+			if(!sheet.url){
+				sheet = styleSheetList[i] = {
+					cssText: sheet
+				}
+				// console.log(sheet.cssText);
+			}
+            sheet.cssText = sheet.cssText.replace(/(\r?\n)/g, '').replace(/(\/\*.*?\*\/)/g, '');
+			sheet.cssList = parseCss(sheet.cssText);
+		}
+		console.log(styleSheetList);
+	}
+	
+	var downloadFile = function(url, id){
+		var xhr = new XMLHttpRequest();
+		xhr.open("GET", url, false);//为了逻辑更简单点, 同步加载
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState == 4 && xhr.status == 200) {
+				context.styleSheetList[id] = {
+					url: url,
+					cssText: xhr.responseText
+				};
+			}
+		}
+		xhr.send();
+	}
+	var loadLinkStyleSheet = function(callback){
+        var styleSheets = document.styleSheets;
+        if(context.styleSheetList.length == styleSheets.length){
+            callback && callback();
+            return;
+        }
+        
+		var originalCursor = document.body.style.cursor;
+		document.body.style.cursor = 'wait';
+		
+		var styleSheetList = context.styleSheetList = [];
+		styleSheetList[styleSheets.length - 1] = 0;
+		var url;
+		for(var i = 0, slen = styleSheets.length; i < slen; i++){
+			sheet = styleSheets[i];
+			if(sheet.ownerNode.constructor === HTMLStyleElement){//这是个style标签
+				styleSheetList[i] = sheet.ownerNode.innerHTML;
+			}else{/*  if(sheet.ownerNode.constructor === HTMLLinkElement) */
+				//link 标签, 发请求下载css文件
+				url = sheet.href.trim();//TODO url 路径检查
+				if(url){
+					downloadFile(url, i);
+				}
+				
+			}
+		}
+		
+		analysisStyleList();
+		document.body.style.cursor = originalCursor;
+		callback && callback();
+	}
+	
+    var checkOverride = function(list, pro){
+        for(var i in list){
+            if(list[i].style[pro]){
+                list[i].style[pro].isOverride = true;
+            }
+        }
+    }
+    
+	var getComputedStyle = function(el){
+        var styleSheetList = context.styleSheetList;
+        var rules, rule, style, flag;
+        var styleList = [];
+        for(var i in styleSheetList){
+            rules = styleSheetList[i].cssList;
+            for(var j in rules){
+                rule = rules[j];
+                if(el.webkitMatchesSelector(rule.selector)){
+                    style = {
+                        selector: rule.selector,
+                        style: {}
+                    };
+                    flag = false;
+                    for(var h in rule.style){
+                        flag = true;
+                        style.style[h] = {
+                            value: rule.style[h]
+                        }
+                        checkOverride(styleList, h);
+                    }
+                    if(flag){
+                        styleList.push(style);
+                    }
+                }
+            }
+        }
+        return styleList;
+	}
+	
 	
     var onDocumentMouseOver = function(e){
         var target = e.target;
@@ -243,9 +258,11 @@ function CssViewer(){
             'display': 'block'
         });
 		var styleList = getComputedStyle(target);
-		var popup = getPopupBox(true);
-		var html = template(POPUPBOX_HTML_TEMPLATE, {rules: styleList});
-        if(html){
+        
+        console.log(styleList);
+        if(styleList.length){
+            var popup = getPopupBox(true);
+            var html = template(POPUPBOX_HTML_TEMPLATE, {rules: styleList});
             popup.innerHTML = html;
             showPopupBox(e.pageX, e.pageY);
         }else{
@@ -254,7 +271,7 @@ function CssViewer(){
     }
 	
     var onDocumentMouseMove = function(e){
-        if(popupBoxShowing){
+        if(context.popupBoxShowing){
             showPopupBox(e.pageX , e.pageY );
         }
     }

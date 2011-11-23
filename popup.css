@@ -1,21 +1,27 @@
+#__css_viewer_popupbox__, #__css_viewer_popupbox__ *{
+    margin: 0;
+    padding: 0;
+}
 #__css_viewer_popupbox__{
 	display: none;
 	z-index: 2147483647; 
 	position: absolute;
-	max-width: 300px;
+	max-width: 400px;
 	background: #293134;
 	border: 2px solid rgba(103, 103, 33, 0.7);
-	border-radius: 8px;
+	-webkit-border-radius: 8px;
 	padding: 10px;
-    font-size: 12px;
+    font-size: 13px;
     pointer-events: none; 
-    opacity: 0.8;
+    opacity: 0.9;
 }
 .__css_viewer_header{
 	font-weight: bold;
 	color: #93C763;
 }
-
+.__css_viewer_item{
+    white-space: nowrap;
+}
 .__css_viewer_key{
 	display: inline-block;
 	color: #678CB1;
@@ -24,4 +30,12 @@
 .__css_viewer_value{
 	display: inline-block;
 	color: #fff;
+}
+.__css_viewer_sign{
+    color: #9CB4AA;
+}
+.__css_viewer_item_override, .__css_viewer_item_override *{
+    text-decoration: line-through;
+    font-style: italic;
+    color: gray;
 }
