@@ -4,31 +4,15 @@ function CssViewer(){
     this._isStart = false;
     
 	var WRAPER_ID = '__css_viewer_wraper__';
-	var WRAPER_STYLE_TEXT = 'pointer-events: none; position: absolute; display: none; border: red dotted 2px; color: red; z-index: 2147483647; ';
+	var WRAPER_STYLE_TEXT = 'box-sizing: border-box; pointer-events: none; position: absolute; display: none; border: red dotted 2px; color: red; z-index: 2147483647; ';
 	
 	var POPUPBOX_ID = '__css_viewer_popupbox__';
 	var POPUPBOX_CSS_STYLE = '';
-	var POPUPBOX_HTML_TEMPLATE = '\
-<% for(var i in rules){ %>\
-	<div class="__css_viewer_header"><%=i %></div>\
-	<div class="__css_viewer_content">\
-		<% \
-			var styles = rules[i].split(";");\
-			var param, index;\
-			for(var s in styles){ \
-				param = styles[s].trim();\
-				if(!param){\
-					continue;\
-				}\
-				index = param.indexOf(":");\
-		%>\
-		<div class="__css_viewer_item">\
-			<div class="__css_viewer_key"><%=param.substring(0, index) %></div>\
-			<div class="__css_viewer_value"><%=param.substring(index) %></div>\
-		</div>\
-		<% } %>\
-	</div>\
-<% } %>';
+	var POPUPBOX_HTML_TEMPLATE = '<% for(var i in rules){ %><div class="__css_viewer_header"><%=i %></div><div class="__css_viewer_content"><% var styles = rules[i].split(";");var param, index;for(var s in styles){ param = styles[s].trim();if(!param){continue;}index = param.indexOf(":");%><div class="__css_viewer_item"><div class="__css_viewer_key"><%=param.substring(0, index) %></div><div class="__css_viewer_value"><%=param.substring(index) %></div></div><% } %></div><% } %>';
+	
+	var templateCache = {};
+	
+	var styleSheetList;
 	
 	HTMLElement.prototype.css = function(style){
 		var el = this;
@@ -37,8 +21,6 @@ function CssViewer(){
 		}
 	}
 	
-	var templateCache = {};
-      
     var template = function(str, data){
         var fn = !/\W/.test(str) ?
           templateCache[str] = templateCache[str] ||
@@ -57,16 +39,6 @@ function CssViewer(){
           + "');}return p.join('');");
         return data ? fn( data ) : fn;
     };
-	
-	var getElementDesName = function(el){
-		if(el.id){
-			return '#' + el.id;
-		}else if(el.className){
-			return el.className.replace(/([\w\-_]+)/g, '.$1');
-		}else{
-			return el.tagName;
-		}
-	}
 	
 	var getWraper = function(createFlag){
 		var wraper = document.getElementById(WRAPER_ID);
@@ -92,6 +64,92 @@ function CssViewer(){
 	
 	var getScrollLeft = function(){
 		return Math.max(document.documentElement.scrollLeft, document.body.scrollLeft);
+	}
+	
+	var parseCss = function(cssText){
+		cssText = cssText.replace(/\/\*.*\*\//g, '');
+		var list = [];
+		var partList = cssText.split('}');
+		var item, part, selector, values;
+		for(var i in partList){
+		// try{
+			part = partList[i].trim();
+			if(!part){
+				continue;
+			}
+			part = part.split('{');
+			selector = part[0].trim();
+			values = part[1].trim();
+			item = {
+				selector: selector,
+				style: {}
+			};
+			var p = /\s*(.+?):\s*(.+?);/g;
+			var m;
+			while(m = p.exec(values)){
+				item.style[m[1]] = m[2];
+			}
+			list.push(item);
+			// }catch(e){
+				// console.log(partList[i]);
+			// }
+		}
+		return list;
+	}
+	
+	var analysisStyleList = function(){
+		var sheet;
+		for(var i = 0, len = styleSheetList.length; i < len; i++){
+			sheet = styleSheetList[i];
+			if(!sheet.url){
+				sheet = styleSheetList[i] = {
+					cssText: sheet
+				}
+				// console.log(sheet.cssText);
+			}
+			sheet.cssList = parseCss(sheet.cssText);
+		}
+		console.log(styleSheetList);
+	}
+	
+	var downloadFile = function(url, id){
+		var xhr = new XMLHttpRequest();
+		xhr.open("GET", url, false);//为了逻辑更简单点, 同步加载
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState == 4 && xhr.status == 200) {
+				styleSheetList[id] = {
+					url: url,
+					cssText: xhr.responseText
+				};
+			}
+		}
+		xhr.send();
+	}
+	var loadLinkStyleSheet = function(callback){
+		var originalCursor = document.body.style.cursor;
+		document.body.style.cursor = 'wait';
+		
+		var styleSheets = document.styleSheets;
+		styleSheetList = [];
+		styleSheetList[styleSheets.length - 1] = 0;
+		var url;
+		for(var i = 0, slen = styleSheets.length; i < slen; i++){
+			sheet = styleSheets[i];
+			if(sheet.ownerNode.constructor === HTMLStyleElement){//这是个style标签
+				styleSheetList[i] = sheet.ownerNode.innerHTML;
+			}else{/*  if(sheet.ownerNode.constructor === HTMLLinkElement) */
+				//link 标签, 发请求下载css文件
+				url = sheet.href.trim();
+				if(url){
+					downloadFile(url, i);
+				}
+				
+			}
+		}
+		
+		analysisStyleList();
+		document.body.style.cursor = originalCursor;
+		callback && callback();
 	}
 	
 	var getComputedStyle = function(el){
@@ -177,12 +235,11 @@ function CssViewer(){
         var wraper = getWraper(true);
 		var scrollTop = getScrollTop();
 		var scrollLeft = getScrollLeft();
-        // wraper.innerHTML = getElementDesName(target);
         wraper.css({
             'width': rect.width + 'px',
             'height': rect.height + 'px',
-            'top': rect.top + scrollTop - 2 + 'px',
-            'left': rect.left + scrollLeft - 2 + 'px',
+            'top': rect.top + scrollTop + 'px',
+            'left': rect.left + scrollLeft + 'px',
             'display': 'block'
         });
 		var styleList = getComputedStyle(target);
@@ -205,9 +262,10 @@ function CssViewer(){
 	this.start = function(){
         if(!this._isStart){
             this._isStart = true;
-            document.addEventListener('mouseover', onDocumentMouseOver, false);
-            document.addEventListener('mousemove', onDocumentMouseMove, false);
-            
+			loadLinkStyleSheet(function(){
+				document.addEventListener('mouseover', onDocumentMouseOver, false);
+				document.addEventListener('mousemove', onDocumentMouseMove, false);
+			});
         }
     }
 	
