@@ -41,6 +41,13 @@ function CssViewer(){
           + "');}return p.join('');");
         return data ? fn( data ) : fn;
     };
+    
+    var isEmptyObject = function(obj){
+        for(var n in obj){
+            return false;
+        }
+        return true;
+    }
 	
 	var getWraper = function(createFlag){
 		var wraper = document.getElementById(WRAPER_ID);
@@ -137,9 +144,8 @@ function CssViewer(){
 			.replace(META_REGEX, '')//暂时把import这类去掉
 			.replace(MEDIA_META_REGEX, '');//TODO ie expression....-_-||
 		
-		var styleReg = CLASS_STYLE_REGEX, styleMatch, 
-			valueReg = KEY_VALUE_REGEX, valueMatch;
-		var item, part, selector, values;
+		var styleReg = CLASS_STYLE_REGEX, styleMatch;
+		var part, selector, values;
 		while(styleMatch = styleReg.exec(cssText)){
 			values = styleMatch[2].trim();
 			if(!values){//空类不要
@@ -149,18 +155,23 @@ function CssViewer(){
 			if(BAD_STYLE_PREX.test(selector)){
 				continue;
 			}
-			item = {
+			list.push({
 				selector: selector,
-				style: {}
-			};
-			while(valueMatch = valueReg.exec(values)){
-				item.style[valueMatch[1]] = valueMatch[2];
-			}
-			list.push(item);
+				style: convertCssText(values);
+			});
 		}
 		return list;
 	}
 	
+    var convertCssText = function(cssText){
+        var style = {},
+			valueReg = KEY_VALUE_REGEX, valueMatch;
+        while(valueMatch = valueReg.exec(cssText)){
+            style[valueMatch[1]] = valueMatch[2];
+        }
+        return style;
+    }
+    
 	var analysisStyleList = function(){
 		var sheet;
         var styleSheetList = context.styleSheetList;
@@ -175,7 +186,7 @@ function CssViewer(){
             sheet.cssText = sheet.cssText.replace(/(\r?\n)/g, '').replace(/(\/\*.*?\*\/)/g, '');
 			sheet.cssList = parseCss(sheet.cssText);
 		}
-		// console.log(styleSheetList);
+		console.log(styleSheetList);
 	}
 	
 	var downloadFile = function(url, id){
@@ -240,20 +251,18 @@ function CssViewer(){
                 rule = rules[j];
 				try{
                 if(el.webkitMatchesSelector(rule.selector)){
-                    style = {
-                        selector: rule.selector,
-                        style: {}
-                    };
-                    flag = false;
+                    style = {};
                     for(var h in rule.style){
-                        flag = true;
-                        style.style[h] = {
+                        style[h] = {
                             value: rule.style[h]
                         }
                         checkOverride(styleList, h);
                     }
-                    if(flag){
-                        styleList.push(style);
+                    if(!isEmptyObject(style)){
+                        styleList.push({
+                            selector: rule.selector,
+                            style: style
+                        });
                     }
                 }
 				}catch(e){
@@ -262,7 +271,7 @@ function CssViewer(){
 				}
             }
         }
-		
+		var selfStyle = convertCssText(el.style.cssText);
         return styleList;
 	}
 	

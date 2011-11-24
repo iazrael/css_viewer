@@ -17,6 +17,7 @@
     font-size: 13px;
     pointer-events: none; 
     opacity: 0.9;
+    font-family: cursive, verdana;
 }
 .__css_viewer_header{
 	font-weight: bold;
@@ -40,5 +41,5 @@
 .__css_viewer_item_override, .__css_viewer_item_override *{
     text-decoration: line-through;
     font-style: italic;
-    color: gray;
+    color: #9CB4AA;
 }
