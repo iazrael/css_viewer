@@ -1,6 +1,9 @@
 #__css_viewer_popupbox__, #__css_viewer_popupbox__ *{
     margin: 0;
     padding: 0;
+	
+	white-space: nowrap;
+	text-align: left;
 }
 #__css_viewer_popupbox__{
 	display: none;

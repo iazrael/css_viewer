@@ -1,0 +1,1 @@
+.FTL li,.FTL li,.hotTopicList li,.SM li{*zoom:expression(function(el){if(window['UI'] && UI.B && UI.B.ie6){el.onmouseover=function(){UI.addClass(this,'hover')};el.onmouseout=function(){UI.removeClass(this,'hover')};setTimeout(function(){el.style.zoom = '1'},0)}}(this))}.__css_viewer_header{font-weight: bold;color: #93C763;}

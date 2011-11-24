@@ -117,26 +117,44 @@ function CssViewer(){
         }
         context.popupBoxShowing = false;
     }
+	
+	//  匹配 @import之类的
+	var META_REGEX = /@([^\-]*?)\s+([^{}]*?);/g;
+	//  去掉 @-webkit-key-frames{... } 这类属性
+	var KEY_FRAMES_REGEX = /@[^;.]*?{([^@.]*?{.*?})*}/g;
+	// @media screen 这类
+	var MEDIA_META_REGEX = /@[^{]+{([^\s;{}][^}]+?\s*{\s*.*?\s*})*?}/g;
+	//匹配所有css类和style, 排除了@这类标识符
+	var CLASS_STYLE_REGEX = /([^\s;{}][^}]+?)\s*{\s*(.*?)\s*}/g;
+	//匹配所有key和值
+	var KEY_VALUE_REGEX = /\s*(.+?):\s*(.+?)(;|$)/g;
+	
+	var BAD_STYLE_PREX = /^[*+_]/;
+	
 	var parseCss = function(cssText){
 		var list = [];
-		var partList = cssText.split('}');//TODO @import 的兼容
+		cssText = cssText.replace(KEY_FRAMES_REGEX, '')
+			.replace(META_REGEX, '')//暂时把import这类去掉
+			.replace(MEDIA_META_REGEX, '');//TODO ie expression....-_-||
+		
+		var styleReg = CLASS_STYLE_REGEX, styleMatch, 
+			valueReg = KEY_VALUE_REGEX, valueMatch;
 		var item, part, selector, values;
-		for(var i in partList){
-			part = partList[i].trim();
-			if(!part){
+		while(styleMatch = styleReg.exec(cssText)){
+			values = styleMatch[2].trim();
+			if(!values){//空类不要
 				continue;
 			}
-			part = part.split('{');
-			selector = part[0].trim();
-			values = part[1].trim();
+			selector = styleMatch[1].trim();
+			if(BAD_STYLE_PREX.test(selector)){
+				continue;
+			}
 			item = {
 				selector: selector,
 				style: {}
 			};
-			var p = /\s*(.+?):\s*(.+?);/g;
-			var m;
-			while(m = p.exec(values)){
-				item.style[m[1]] = m[2];
+			while(valueMatch = valueReg.exec(values)){
+				item.style[valueMatch[1]] = valueMatch[2];
 			}
 			list.push(item);
 		}
@@ -199,7 +217,6 @@ function CssViewer(){
 				
 			}
 		}
-		
 		analysisStyleList();
 		document.body.style.cursor = originalCursor;
 		callback && callback();
@@ -221,6 +238,7 @@ function CssViewer(){
             rules = styleSheetList[i].cssList;
             for(var j in rules){
                 rule = rules[j];
+				try{
                 if(el.webkitMatchesSelector(rule.selector)){
                     style = {
                         selector: rule.selector,
@@ -238,8 +256,13 @@ function CssViewer(){
                         styleList.push(style);
                     }
                 }
+				}catch(e){
+				console.error('error:', i, j);
+				console.error(rule.selector);
+				}
             }
         }
+		
         return styleList;
 	}
 	
@@ -258,8 +281,8 @@ function CssViewer(){
             'display': 'block'
         });
 		var styleList = getComputedStyle(target);
-        
-        console.log(styleList);
+        // console.log('element style:');
+        // console.log(styleList);
         if(styleList.length){
             var popup = getPopupBox(true);
             var html = template(POPUPBOX_HTML_TEMPLATE, {rules: styleList});
@@ -283,6 +306,7 @@ function CssViewer(){
 				document.addEventListener('mouseover', onDocumentMouseOver, false);
 				document.addEventListener('mousemove', onDocumentMouseMove, false);
 			});
+			
         }
     }
 	
