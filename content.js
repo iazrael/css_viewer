@@ -157,7 +157,7 @@ function CssViewer(){
 			}
 			list.push({
 				selector: selector,
-				style: convertCssText(values);
+				style: convertCssText(values)
 			});
 		}
 		return list;
@@ -241,6 +241,17 @@ function CssViewer(){
         }
     }
     
+    var convertStyle = function(styleList, originStyle){
+        var style = {};
+        for(var h in originStyle){
+            style[h] = {
+                value: originStyle[h]
+            }
+            checkOverride(styleList, h);
+        }
+        return style;
+    }
+    
 	var getComputedStyle = function(el){
         var styleSheetList = context.styleSheetList;
         var rules, rule, style, flag;
@@ -251,13 +262,7 @@ function CssViewer(){
                 rule = rules[j];
 				try{
                 if(el.webkitMatchesSelector(rule.selector)){
-                    style = {};
-                    for(var h in rule.style){
-                        style[h] = {
-                            value: rule.style[h]
-                        }
-                        checkOverride(styleList, h);
-                    }
+                    style = convertStyle(styleList, rule.style);
                     if(!isEmptyObject(style)){
                         styleList.push({
                             selector: rule.selector,
@@ -272,6 +277,13 @@ function CssViewer(){
             }
         }
 		var selfStyle = convertCssText(el.style.cssText);
+        selfStyle = convertStyle(styleList, selfStyle);
+        if(!isEmptyObject(selfStyle)){
+            styleList.push({
+                selector: '(inline-style)',
+                style: selfStyle
+            });
+        }
         return styleList;
 	}
 	
