@@ -186,7 +186,7 @@ function CssViewer(){
             sheet.cssText = sheet.cssText.replace(/(\r?\n)/g, '').replace(/(\/\*.*?\*\/)/g, '');
 			sheet.cssList = parseCss(sheet.cssText);
 		}
-		console.log(styleSheetList);
+		// console.log(styleSheetList);
 	}
 	
 	var downloadFile = function(url, id){

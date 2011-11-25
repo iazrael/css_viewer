@@ -1,8 +1,8 @@
 {
     "name": "CSS Viewer",
-    "version": "0.0.4",
+    "version": "0.1.1",
     
-    "description": "select a node and see what style it has.",
+    "description": "Select a node and see what style it has.",
     "icons": {
         "16": "icons/icon16.png",
         "48": "icons/icon48.png",

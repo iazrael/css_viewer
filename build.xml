@@ -1,114 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="Javascritp_build" default="clean" basedir="./">
+<project name="CSS Viewer Build" default="clean" basedir="./">
 	
-	<description>Javascritp build for Ant</description>
+	<description>CSS Viewer Build</description>
 	
-	<property name="src" location="js"/>
 	<property name="build" location="build"/>
-	<property name="target" location="js"/>
+	<property name="temp" location="${build}/temp"/>
 	<property name="lib" location="lib"/>
+    
 	<property name="charset" value="utf-8"/>
-	
-	<property name="file1" value="jquery.plugin.js"/>
-	<property name="file2" value="tallybook.all.js"/>
-	<property name="file3" value="statistics.all.js"/>
-	<!-- - - - - - - - - - - - - - - - - - 
-	这个 ant 配置文件要经过4个流程：
-	1、target init 进行初始化处理，创建一个目录build，用于暂存文件；
-	2、target concat 合并两个 js 文件，放到 build 目录下；
-	3、target compress 调用 Yui Compressor 对合并后的 js 进行压缩
-	4、target clean 进行清理动作，删除生成的 build 目录
+	<property name="zipname" value="build.zip"/>
+	<property name="content-js" value="content.js"/>
+	<property name="target-js" value="${temp}/content.js"/>
 
-	ANT标签和属性解释：
-	project 的 default 对应某个 target 的 name 值，表示默认执行哪个步骤；
-	target 的 depends 对应其他某些 target 的 name 属性，表示依赖性；
-	${name} 可以引用 property 中定义的值。
-	mkdir 标签创建一个目录
-	replaceregexp, 正则表达式替换，将DEBUG标识替换为空，在正式环境不处理DEBUG信息
-	注意设置文件的 encoding 属性，否则可能有乱码情况
-
-	关于ANT的详细文档，请看官方手册：http://ant.apache.org/manual/        
-         - - - - - - - - - - - - - - - - - -->
     <target name="init">
+    	<delete dir="${build}" />
     	<mkdir dir="${build}" />
+    	<mkdir dir="${temp}" />
     </target>
 	
-	<target name="concat" depends="init">
-		<echo message="concating ${file1}..." />
-		<concat destfile="${build}/${file1}" encoding="${charset}" outputencoding="${charset}">
-			<path path="${src}/jquery.datepicker.extend.js" />
-			<path path="${src}/jquery.form.js" />
-			<path path="${src}/jquery.validate.js" />
-			<path path="${src}/jquery.pagination.js" />
-			<path path="${src}/jquery.center.js" />
-			<path path="${src}/jquery.localization.js" />
-		</concat>
-		<echo message="done" />
-		<echo message="concating ${file2}..." />
-		<concat destfile="${build}/${file2}" encoding="${charset}" outputencoding="${charset}">
-			<path path="${src}/common.js" />
-			<path path="${src}/tallybook.js" />
-		</concat>
-		<echo message="done" />
-		<echo message="concating ${file3}..." />
-		<concat destfile="${build}/${file3}" encoding="${charset}" outputencoding="${charset}">
-			<path path="${src}/jqplot.logAxisRenderer.js" />
-			<path path="${src}/jqplot.barRenderer.js" />
-			<path path="${src}/jqplot.categoryAxisRenderer.js" />
-			<path path="${src}/jqplot.pieRenderer.js" />
-			<path path="${src}/jqplot.highlighter.js" />
-			<path path="${src}/jqplot.pointLabels.js" />
-			<path path="${src}/jquery.center.js" />
-			<path path="${src}/common.js" />
-			<path path="${src}/statistics.js" />
-		</concat>
-		<echo message="done" />
-		<!-- - - - - - - - - - - - - - - - - - 
-			replaceregexp的说明	http://ant.apache.org/manual/Tasks/replaceregexp.html
-		 - - - - - - - - - - - - - - - - - 
-		
-		<replaceregexp match="DEBUG" replace="" flags="g" byline="true" file="${build}/all.js" encoding="${charset}" />
-		-->
-	</target>
-	
-	<!-- - - - - - - - - - - - - - - - - - 
-		YUICompressor参数 http://developer.yahoo.com/yui/compressor/#work
-		
-		通用参数：
-		    -h, \-\-help                 显示帮助信息
-		   \-\-type <js|css>            指定输入文件的文件类型
-		   \-\-charset <charset>        指定读取输入文件使用的编码
-		   \-\-line-break <column>      在指定的列后插入一个 line-bread 符号
-		   \-v, \-\-verbose              显示info和warn级别的信息
-		   -o <file>                  指定输出文件。默认输出是控制台。
-		
-		JavaScript专用参数：
-		     \-\-nomunge                  只压缩, 不对局部变量进行混淆。
-		   \-\-preserve-semi            保留所有的分号。
-		   \-\-disable-optimizations    禁止优化。
-	- - - - - - - - - - - - - - - - - -->
-	<target name="compress" depends="concat">
-		<echo message="start compress" />
-		<echo message="compressing ${file1}..." />
-		<java jar="${lib}/yuicompressor-2.4.6.jar" fork="true" failonerror="false">
-			<arg line="--type js --charset ${charset} --nomunge  -o ${target}/${file1} ${build}/${file1}" />
+    <target name="copy" depends="init">
+        <copy todir="${temp}">
+            <fileset dir="${basedir}">
+                <include name="manifest.json" />
+                <!-- <include name="content.js" /> -->
+                <include name="background.html" />
+                <include name="popup.css" />
+            </fileset>
+        </copy>
+        <copy todir="${temp}/icons">
+            <fileset dir="${basedir}/icons">
+                <include name="*.png" />
+            </fileset>
+        </copy>
+    </target>
+    
+    <target name="compress" depends="copy">
+        <echo message="compressing..." />
+        <java jar="${lib}/compiler.jar" fork="true">
+			<arg line="--charset ${charset} --js='${content-js}' --js_output_file='${target-js}'" />
 		</java>
-		<echo message="done" />
-		<echo message="compressing ${file2}..." />
-		<java jar="${lib}/yuicompressor-2.4.6.jar" fork="true" failonerror="false">
-			<arg line="--type js --charset ${charset} --nomunge  -o ${target}/${file2} ${build}/${file2}" />
-		</java>
-		<echo message="done" />
-		<echo message="compressing ${file3}..." />
-		<java jar="${lib}/yuicompressor-2.4.6.jar" fork="true" failonerror="false">
-			<arg line="--type js --charset ${charset} --nomunge  -o ${target}/${file3} ${build}/${file3}" />
-		</java>
-		<echo message="done" />
-		<echo message="end compress" />
+        <echo message="compress success"/>
+    </target>
+    
+    <target name="zip" depends="compress">
+        <zip destfile="${build}/${zipname}" basedir="${temp}"/>
+    </target>
+    
+    <target name="clean" depends="zip">
+        <delete dir="${temp}" />
 	</target>
-		
-	<target name="clean" depends="compress">
-		<delete dir="${build}"/>
-	</target>
-	
 </project>
