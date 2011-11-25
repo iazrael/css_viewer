@@ -280,7 +280,7 @@ function CssViewer(){
         selfStyle = convertStyle(styleList, selfStyle);
         if(!isEmptyObject(selfStyle)){
             styleList.push({
-                selector: '(inline-style)',
+                selector: '(element.style)',
                 style: selfStyle
             });
         }
