@@ -154,28 +154,7 @@
 <span id="button2" class="button red bubble">Button</span>
 <input id="button3" type="button" class="button green square" name="button-1" value="Button" />
 
+<script src="cssparser.js"></script>
 <script type="text/javascript">
-	var getComputedStyle = function(el){
-		var styleSheets = document.styleSheets,
-			styleList = {}, 
-			sheet, rules, rule, selector, style;
-			console.log('=====================');
-		for(var i = 0, slen = styleSheets.length; i < slen; i++){
-			sheet = styleSheets[i];
-			if(!sheet.rules){
-				continue;
-			}
-			rules = sheet.rules;
-			for(var j = 0, rlen = rules.length; j < rlen; j++){
-				rule = rules[j];
-				selector = rule.selectorText;
-				if(el.webkitMatchesSelector(selector)){
-					console.log(selector);
-					style = rule.style.cssText;
-					styleList[selector] = style;
-				}
-			}
-		}
-		return styleList;
-	}
+	
 </script>
