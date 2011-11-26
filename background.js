@@ -1,7 +1,14 @@
 ;(function(){
     var MEDIA_REGEX = /\b(screen|all)\b/;
+    var BAD_PROPERTY_REGEX = /\bimportant\!/gi;
+    var BAD_PROPERTY_END_REGEX = /\binherit\b\s*}/gi;
     
     var parser = new CSSParser();
+    
+    function pretreatCssText(cssText){
+        return cssText.replace(BAD_PROPERTY_REGEX, '!impartant')
+            .replace(BAD_PROPERTY_END_REGEX, 'inherit;}');
+    }
     
     function convertJsStyleSheet(originSheet, sheet){
         sheet = sheet || [];
@@ -38,13 +45,13 @@
     chrome.extension.onRequest.addListener(function(request, sender, sendResponse){
         //alert('request: ' + request.cssText);
         
-        var cssText = request.cssText;
+        var cssText = pretreatCssText(request.cssText);
         var sheet = parser.parse(cssText, false, false);
         var response = {index: request.index};
-        if(sheet){
-            response.sheet = convertJsStyleSheet(sheet);
-        }
-        // console.log(response.sheet );
+        // console.log('================================');
+        // console.log(sheet);
+        response.sheet = convertJsStyleSheet(sheet);
+        // console.log(response.sheet);
         // console.log('================================');
         sendResponse(response);
     });

@@ -42,75 +42,8 @@ function CssViewer(){
         return true;
     }
 	
-	
-	
-	//  匹配 @import之类的
-	var META_REGEX = /@([^\-]*?)\s+([^{}]*?);/g;
-	//  去掉 @-webkit-key-frames{... } 这类属性
-	var KEY_FRAMES_REGEX = /@[^;.]*?{([^@.]*?{.*?})*}/g;
-	// @media screen 这类
-	var MEDIA_META_REGEX = /@[^{]+{([^\s;{}][^}]+?\s*{\s*.*?\s*})*?}/g;
-	//匹配所有css类和style, 排除了@这类标识符
-	var CLASS_STYLE_REGEX = /([^\s;{}][^}]+?)\s*{\s*(.*?)\s*}/g;
-	//匹配所有key和值
-	var KEY_VALUE_REGEX = /\s*(.+?):\s*(.+?)(;|$)/g;
-	
-	var BAD_STYLE_PREX = /^[*+_]/;
-	
-	var parseCss = function(cssText){
-		var list = [];
-		cssText = cssText.replace(KEY_FRAMES_REGEX, '')
-			.replace(META_REGEX, '')//暂时把import这类去掉
-			.replace(MEDIA_META_REGEX, '');//TODO ie expression....-_-||
-		
-		var styleReg = CLASS_STYLE_REGEX, styleMatch;
-		var part, selector, values;
-		while(styleMatch = styleReg.exec(cssText)){
-			values = styleMatch[2].trim();
-			if(!values){//空类不要
-				continue;
-			}
-			selector = styleMatch[1].trim();
-			if(BAD_STYLE_PREX.test(selector)){
-				continue;
-			}
-			list.push({
-				selector: selector,
-				style: convertCssText(values)
-			});
-		}
-		return list;
-	}
-	
-    var convertCssText = function(cssText){
-        var style = {},
-			valueReg = KEY_VALUE_REGEX, valueMatch;
-        while(valueMatch = valueReg.exec(cssText)){
-            style[valueMatch[1]] = valueMatch[2];
-        }
-        return style;
-    }
-    
-	var analysisStyleList = function(){
-		var sheet;
-        var styleSheetList = context.styleSheetList;
-		for(var i = 0, len = styleSheetList.length; i < len; i++){
-			sheet = styleSheetList[i];
-			if(!sheet.url){
-				sheet = styleSheetList[i] = {
-					cssText: sheet
-				}
-				// console.log(sheet.cssText);
-			}
-            sheet.cssText = sheet.cssText.replace(/(\r?\n)/g, '').replace(/(\/\*.*?\*\/)/g, '');
-			sheet.cssList = parseCss(sheet.cssText);
-            sheet.styleList = context.parser.parse(sheet.cssText, false, false);
-		}
-		console.log(styleSheetList);
-	}
-	
     var onAllCssParseSuccess = function(){
-        console.log('all done.');
+        // console.log('all done.');
         onStyleSheetReady();
     }
     
@@ -129,7 +62,7 @@ function CssViewer(){
         var styleSheetList = context.styleSheetList;
         var sheet = styleSheetList[response.index];
         sheet.status = 0;
-        sheet.styleList = response.sheet;
+        sheet.styleList = response.sheet || [];
         if(isAllCssHadParsed()){
             onAllCssParseSuccess();
         }
@@ -213,6 +146,33 @@ function CssViewer(){
         return context.styleSheetList.length == document.styleSheets.length;
     }
 	
+    var PROPERTY_SELECTOR_REGEX = /\[[^\[\]]*\]/g;
+    var CLEAR_SELECTOR_REGEX = /(:[^,\/]+?)( |,|$)/g;
+    var PROPERTY_SELECTOR_CACHE_REGEX = /{%(\d+?)%}/g;
+    //清理选择器, 去掉伪类
+    var clearSelector = function(selector){
+        var count = 1, cache = {};
+        selector = selector.trim().replace(PROPERTY_SELECTOR_REGEX, function(m){
+            var id = count++;
+            cache[id] = m;
+            return '{%' + id + '%}';;
+        });
+        selector = selector.replace(CLEAR_SELECTOR_REGEX, '$2');
+        selector = selector.replace(PROPERTY_SELECTOR_CACHE_REGEX, function(m, s){
+            return cache[s];
+        });
+        return selector.trim();
+    }
+    //匹配所有key和值
+	var KEY_VALUE_REGEX = /\s*(.+?):\s*(.+?)(;|$)/g;
+    var convertCssText = function(cssText){
+        var style = {},
+			valueReg = KEY_VALUE_REGEX, valueMatch;
+        while(valueMatch = valueReg.exec(cssText)){
+            style[valueMatch[1]] = valueMatch[2];
+        }
+        return style;
+    }
     var checkOverride = function(list, pro){
         for(var i in list){
             if(list[i].style[pro]){
@@ -220,7 +180,6 @@ function CssViewer(){
             }
         }
     }
-    
     var convertStyle = function(styleList, originStyle){
         var style = {};
         for(var h in originStyle){
@@ -231,18 +190,28 @@ function CssViewer(){
         }
         return style;
     }
-    
+    var NOT_SELECTOR_REGEX = /^\W+$/;
+    var isEmptySelector = function(selector){
+        if(!selector || NOT_SELECTOR_REGEX.test(selector)){
+            return true;
+        }
+        return false;
+    }
 	var getComputedStyle = function(el){
         var styleSheetList = context.styleSheetList;
-        var rule, style, flag;
+        // console.log(styleSheetList);
+        var rule, style, selector;
         var cpStyleList = [];
-        console.log(styleSheetList);
         for(var i in styleSheetList){
             for(var j in styleSheetList[i].styleList){
                 rule = styleSheetList[i].styleList[j];
-				try{
-                if(el.webkitMatchesSelector(rule.selector)){
-                    style = convertStyle(cpStyleList, rule.style);
+                selector = clearSelector(rule.selector);
+                try{
+                if(isEmptySelector(selector)){
+                    continue;
+                }
+                if(el.webkitMatchesSelector(selector)){
+                    style = convertStyle(cpStyleList, rule.styleList);
                     if(!isEmptyObject(style)){
                         cpStyleList.push({
                             selector: rule.selector,
@@ -250,10 +219,9 @@ function CssViewer(){
                         });
                     }
                 }
-				}catch(e){
-				console.error('error:', i, j);
-				console.error(rule);
-				}
+                }catch(e){
+                    console.error(e, i, j, 'selector','[' + selector + ']');
+                }
             }
         }
 		var selfStyle = convertCssText(el.style.cssText);
