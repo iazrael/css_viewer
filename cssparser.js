@@ -44,7 +44,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-;(function(){
+//;(function(){
 
 var kCHARSET_RULE_MISSING_SEMICOLON = "Missing semicolon at the end of @charset rule";
 var kCHARSET_RULE_CHARSET_IS_STRING = "The charset in the @charset rule should be a string";
@@ -5431,4 +5431,4 @@ function FilterRepeatingGradientForOutput(aValue, aEngine)
 
 window.CSSParser = CSSParser;
 
-})();
+//})();
