@@ -9,22 +9,24 @@
     
 	<property name="charset" value="utf-8"/>
 	<property name="zipname" value="build.zip"/>
-	<property name="content-js" value="content.js"/>
-	<property name="target-js" value="${temp}/content.js"/>
-
+    
+	<property name="jsFileList" value="content.js, cssparser.js, background.js"/>
+	<property name="cssFileList" value="popup.css"/>
+    
+    <taskdef name="foreach" classname="net.sf.antcontrib.logic.ForEach" classpath="lib/ant-contrib-1.0b3.jar" />
+    
     <target name="init">
     	<delete dir="${build}" />
     	<mkdir dir="${build}" />
     	<mkdir dir="${temp}" />
     </target>
-	
+    
     <target name="copy" depends="init">
         <copy todir="${temp}">
             <fileset dir="${basedir}">
                 <include name="manifest.json" />
-                <!-- <include name="content.js" /> -->
                 <include name="background.html" />
-                <include name="popup.css" />
+                <!-- <include name="popup.css" /> -->
             </fileset>
         </copy>
         <copy todir="${temp}/icons">
@@ -34,12 +36,28 @@
         </copy>
     </target>
     
-    <target name="compress" depends="copy">
-        <echo message="compressing..." />
+    <target name="compress-js-task">
+        <echo message="compressing ${fileName}" />
         <java jar="${lib}/compiler.jar" fork="true">
-			<arg line="--charset ${charset} --js='${content-js}' --js_output_file='${target-js}'" />
+			<arg line="--charset ${charset} --js='${fileName}' --js_output_file='${temp}/${fileName}'" />
 		</java>
-        <echo message="compress success"/>
+    </target>
+    
+    <target name="compress-css-task">
+        <echo message="compressing ${fileName}" />
+        <java jar="${lib}/yuicompressor-2.4.6.jar" fork="true">
+			<arg line="--type css --charset ${charset} '${fileName}' -o '${temp}/${fileName}'" />
+		</java>
+    </target>
+    
+    <target name="compress" depends="copy">
+        <echo message="compressing js..." />
+        <foreach target="compress-js-task" list="${jsFileList}" delimiter="," param="fileName" trim="true"></foreach>
+        <echo message="compress js finish"/>
+        
+        <echo message="compressing css..." />
+        <foreach target="compress-css-task" list="${cssFileList}" delimiter="," param="fileName" trim="true"></foreach>
+        <echo message="compress css finish"/>
     </target>
     
     <target name="zip" depends="compress">
@@ -47,6 +65,6 @@
     </target>
     
     <target name="clean" depends="zip">
-        <delete dir="${temp}" />
+        <!-- <delete dir="${temp}" /> -->
 	</target>
 </project>
