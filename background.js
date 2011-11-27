@@ -49,8 +49,8 @@
         var sheet = parser.parse(cssText, false, false);
         var response = {index: request.index};
         if(sheet){
-            // console.log('================================');
-            // console.log(sheet);
+            console.log('================================');
+            console.log(sheet);
             response.sheet = convertJsStyleSheet(sheet);
             // console.log(response.sheet);
             // console.log('================================');
