@@ -148,6 +148,7 @@ function CssViewer(){
 	
     var PROPERTY_SELECTOR_REGEX = /\[[^\[\]]*\]/g;
     var CLEAR_SELECTOR_REGEX = /(:[^,\/]+?)( |,|$)/g;
+    var CLEAR_UNWANT_COMMA_REGEX = /(^,(\s*,)*)|((,\s*)*,\s*$)/g;
     var PROPERTY_SELECTOR_CACHE_REGEX = /{%(\d+?)%}/g;
     //清理选择器, 去掉伪类
     var clearSelector = function(selector){
@@ -158,6 +159,7 @@ function CssViewer(){
             return '{%' + id + '%}';;
         });
         selector = selector.replace(CLEAR_SELECTOR_REGEX, '$2');
+        selector = selector.replace(CLEAR_UNWANT_COMMA_REGEX, '');
         selector = selector.replace(PROPERTY_SELECTOR_CACHE_REGEX, function(m, s){
             return cache[s];
         });
@@ -192,7 +194,7 @@ function CssViewer(){
     }
     var NOT_SELECTOR_REGEX = /^\W+$/;
     var isEmptySelector = function(selector){
-        if(!selector || NOT_SELECTOR_REGEX.test(selector)){
+        if(!selector/*  || NOT_SELECTOR_REGEX.test(selector) */){
             return true;
         }
         return false;
@@ -354,6 +356,7 @@ function CssViewer(){
     }
     
     var onStyleSheetReady = function(){
+        document.body.style.cursor = document.body._originCursor;
         document.addEventListener('mouseover', onDocumentMouseOver, false);
         document.addEventListener('mousemove', onDocumentMouseMove, false);
     }
@@ -364,6 +367,9 @@ function CssViewer(){
             if(isStyleSheetNoChange()){
                 onStyleSheetReady();
             }else{
+                //TODO 可以换成更优雅的
+                document.body._originCursor = document.body.style.cursor;
+                document.body.style.cursor = 'wait';
                 loadLinkStyleSheet();
             }
         }

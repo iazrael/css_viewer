@@ -48,11 +48,13 @@
         var cssText = pretreatCssText(request.cssText);
         var sheet = parser.parse(cssText, false, false);
         var response = {index: request.index};
-        // console.log('================================');
-        // console.log(sheet);
-        response.sheet = convertJsStyleSheet(sheet);
-        // console.log(response.sheet);
-        // console.log('================================');
+        if(sheet){
+            console.log('================================');
+            console.log(sheet);
+            response.sheet = convertJsStyleSheet(sheet);
+            // console.log(response.sheet);
+            // console.log('================================');
+        }
         sendResponse(response);
     });
     chrome.browserAction.onClicked.addListener(function(tab){
