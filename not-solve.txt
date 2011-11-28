@@ -7,3 +7,4 @@ DONE--样式合并
 iframe支持
 加载提示
 @import
+处理动态插入的style和link

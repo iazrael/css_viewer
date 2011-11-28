@@ -115,6 +115,16 @@ function CssViewer(){
 		}
 		xhr.send(null);
 	}
+    
+    var getDownloadUrl = function(url){
+        url = url.trim();
+        if(/^https?:\/\//.test(url)){
+            return url;
+        }else{
+            return '';
+        }
+    }
+    
 	var loadLinkStyleSheet = function(){
         var styleSheets = document.styleSheets;
 		var styleSheetList = context.styleSheetList = [];
@@ -128,7 +138,7 @@ function CssViewer(){
                 };
 			}else{/*  if(sheet.ownerNode.constructor === HTMLLinkElement) */
 				//link 标签, 发请求下载css文件
-				url = sheet.href.trim();//TODO url 路径检查
+				url = getDownloadUrl(sheet.href);//TODO url 路径检查
 				if(url){
                     hasDownload = true;
 					downloadFile(url, i);
