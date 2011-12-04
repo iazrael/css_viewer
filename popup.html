@@ -1,23 +1,153 @@
 <html>
 <head>
-	<link href="popup-style.css" rel="stylesheet" type="text/css" >
+<style>
+.loading{
+    width: 32px;
+    height: 32px;
+}
+@-webkit-keyframes auto-circle{
+    from{
+        -webkit-transform: rotate(0deg);
+    }
+    to{
+        -webkit-transform: rotate(360deg);
+    }
+}
+.loading div{
+    position: relative;
+    width: 100%;
+    height: 100%;
+    -webkit-animation: auto-circle 1s linear infinite ;
+}
+.loading.run div{
+    -webkit-animation: auto-circle 1s linear infinite ;
+}
+.loading div span{
+    display: block;
+    background: #04AED9;
+    -webkit-border-radius: 100%;
+    position: absolute;
+}
+.loading div span:nth-child(1){
+    width: 18%;
+    height: 18%;
+    left: 50%;
+    top: 0%;
+    margin-left: -9%;
+}
+.loading div span:nth-child(2){
+    width: 16.5%;
+    height: 16.5%;
+    top: 15%;
+    left: 28%;
+    margin-left: -8.25%;
+    margin-top: -8.25%;
+}
+.loading div span:nth-child(3){
+    width: 15%;
+    height: 15%;
+    top: 30%;
+    left: 12%;
+    margin-left: -7.5%;
+    margin-top: -7.5%;
+}
+.loading div span:nth-child(4){
+    width: 13.5%;
+    height: 13.5%;
+    left: 0%;
+    top: 50%;
+    margin-top: -6.75%;
+}
+.loading div span:nth-child(5){
+    width: 12%;
+    height: 12%;
+    bottom: 28%;
+    left: 12%;
+    margin-left: -6%;
+    margin-bottom: -6%;
+}
+.loading div span:nth-child(6){
+    width: 10.5%;
+    height: 10.5%;
+    bottom: 12%;
+    left: 28%;
+    margin-left: -5.25%;
+    margin-bottom: -5.25%;
+}
+.loading div span:nth-child(7){
+    width: 9%;
+    height: 9%;
+    left: 50%;
+    bottom: 0%;
+    margin-left: -4.5%;
+}
+.loading div span:nth-child(8){
+    width: 7.5%;
+    height: 7.5%;
+    right: 25%;
+    bottom: 10%;
+    margin-right: -3.75%;
+    margin-bottom: -3.75%;
+}
+.loading div span:nth-child(9){
+    width: 6%;
+    height: 6%;
+    bottom: 26%;
+    right: 8%;
+    margin-right: -3%;
+    margin-bottom: -3%;
+}
+.loading div span:nth-child(10){
+    width: 4.5%;
+    height: 4.5%;
+    top: 50%;
+    right: 0%;
+    margin-left: -2.25%;
+}
+.loading div span:nth-child(11){
+    width: 3%;
+    height: 3%;
+    top: 30%;
+    right: 9%;
+    margin-right: -1.5%;
+    margin-top: -1.5%;
+}
+.loading div span:nth-child(12){
+    width: 1.5%;
+    height: 1.5%;
+    top: 14%;
+    right: 26%;
+    margin-right: -0.75%;
+    margin-top: -0.75%;
+}
+</style>
 </head>
 <body>
-<div id="__css_viewer_popupbox__" >
-<% for(var i = rules.length - 1; i >= 0; i--){ %>
-	<div class="__css_viewer_header"><%=rules[i].selector %></div>
-	<div class="__css_viewer_content">
-		<% 
-			var styles = rules[i].style;
-			var style;
-			for(var s in styles){ 
-				var style = styles[s];
-		%>
-		<div class="__css_viewer_item <%=style.isOverride ? "__css_viewer_item_override" : "" %>">
-			<div class="__css_viewer_key"><%=s %></div><span class="__css_viewer_sign">: </span>
-			<div class="__css_viewer_value"><%=style.value %></div><span class="__css_viewer_sign">;</span>
-		</div>
-		<% } %>
-	</div>
-<% } %>
+<div class="loading run">
+    <div><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
 </div>
+<div id="log"></div>
+<script>
+(function(){
+
+var STATUS = {
+    UNINIT: 0,
+    INITED: 1,
+    RUNNING: 2
+};
+
+chrome.tabs.getSelected(null, function(tab) {
+    chrome.tabs.sendRequest(tab.id, {type: 'method', param: "queryStatus"}, function(response) {
+        if(!response.status){//没有初始化, 让他进行初始化
+            log.innerHTML = '<h2>initializing...</h2>';
+            chrome.tabs.sendRequest(tab.id, {type: 'method', param: "run"});
+        }else if(response.status === STATUS.RUNNING){//正在运行, 停止它
+            log.innerHTML = '<h2>stoped...</h2>';
+            chrome.tabs.sendRequest(tab.id, {type: 'method', param: "stop"});
+        }
+    });
+});
+/******** end ********/
+})();
+</script>

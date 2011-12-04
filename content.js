@@ -1,227 +1,336 @@
 ;(function(window, document){
 
-function CssViewer(){
+var STATUS = {
+    UNINIT: 0,
+    INITED: 1,
+    RUNNING: 2
+};
 
-    this._isStart = false;
-    this.styleSheetList = [];
-    this.popupBoxShowing = false;
-    var context = this;
-    
-	var WRAPER_ID = '__css_viewer_wraper__';
-	var WRAPER_STYLE_TEXT = 'box-sizing: border-box; pointer-events: none; position: absolute; display: none; border: red dotted 2px; color: red; z-index: 2147483647; ';
+var WRAPER_ID = '__css_viewer_wraper__';
+var POPUPBOX_ID = '__css_viewer_popupbox__';
+var POPUPBOX_HTML_TEMPLATE = '<% for(var i = rules.length - 1; i >= 0; i--){ %><div class="__css_viewer_header"><%=rules[i].selector %></div><div class="__css_viewer_content"><% var styles = rules[i].style;var style;for(var s in styles){ var style = styles[s];%><div class="__css_viewer_item <%=style.isOverride ? "__css_viewer_item_override" : "" %>"><div class="__css_viewer_key"><%=s %></div><span class="__css_viewer_sign">: </span><div class="__css_viewer_value"><%=style.value %></div><span class="__css_viewer_sign">;</span></div><% } %></div><% } %>';
+
+var tabId;
+
+//****************************** tool ************************
+var templateCache = {};
 	
-	var POPUPBOX_ID = '__css_viewer_popupbox__';
-	var POPUPBOX_CSS_STYLE = '';
-	var POPUPBOX_HTML_TEMPLATE = '<% for(var i = rules.length - 1; i >= 0; i--){ %><div class="__css_viewer_header"><%=rules[i].selector %></div><div class="__css_viewer_content"><% var styles = rules[i].style;var style;for(var s in styles){ var style = styles[s];%><div class="__css_viewer_item <%=style.isOverride ? "__css_viewer_item_override" : "" %>"><div class="__css_viewer_key"><%=s %></div><span class="__css_viewer_sign">: </span><div class="__css_viewer_value"><%=style.value %></div><span class="__css_viewer_sign">;</span></div><% } %></div><% } %>';
-	
-	var templateCache = {};
-	
-    var template = function(str, data){
-        var fn = !/\W/.test(str) ?
-          templateCache[str] = templateCache[str] ||
-            template(document.getElementById(str).innerHTML) :
-          new Function("obj",
-            "var p=[],print=function(){p.push.apply(p,arguments);};" +
-            "with(obj){p.push('" +
-            str
-              .replace(/[\r\t\n]/g, " ")
-              .split("<%").join("\t")
-              .replace(/((^|%>)[^\t]*)'/g, "$1\r")
-              .replace(/\t=(.*?)%>/g, "',$1,'")
-              .split("\t").join("');")
-              .split("%>").join("p.push('")
-              .split("\r").join("\\'")
-          + "');}return p.join('');");
-        return data ? fn( data ) : fn;
-    };
-    
-    var isEmptyObject = function(obj){
-        for(var n in obj){
-            return false;
-        }
-        return true;
-    }
-	
-    var onAllCssParseSuccess = function(){
-        // console.log('all done.');
-        onStyleSheetReady();
-    }
-    
-    var isAllCssHadParsed = function(){
-        var styleSheetList = context.styleSheetList;
-        for(var sheet, i = 0, len = styleSheetList.length; i < len; i++){
-			sheet = styleSheetList[i];
-			if(sheet.status > 0){
-                return false;
-			}
-		}
-        return true;
-    }
-    
-    var onParseCssResponse = function(response){
-        var styleSheetList = context.styleSheetList;
-        var sheet = styleSheetList[response.index];
-        sheet.status = 0;
-        sheet.styleList = response.sheet || [];
-        if(isAllCssHadParsed()){
-            onAllCssParseSuccess();
-        }
-    }
-    
-    var onAllCssDownloadSuccess = function(){
-        // console.log('onAllCssDownloadSuccess' ,context.styleSheetList);
-        var styleSheetList = context.styleSheetList;
-        for(var sheet, i = 0, len = styleSheetList.length; i < len; i++){
-			sheet = styleSheetList[i];
-			if(!sheet){
-                styleSheetList[i] = {
-                    status: -1
-                };
-				continue;
-			}
-            sheet.status = 1;
-            chrome.extension.sendRequest({cssText: sheet.cssText, index: i}, onParseCssResponse);
-            
-		}
-        
-    }
-    
-    var isAllCssFileReady = function(){
-        var styleSheetList = context.styleSheetList;
-        for(var i = 0, len = styleSheetList.length; i < len; i++){
-            // console.log('check index: ', i, styleSheetList[i]);
-            // console.log('check styleSheetList[i]: ', styleSheetList[i]);
-            if(typeof(styleSheetList[i]) == 'undefined'){
-                return false;
-            }
-        }
-        return true;
-    }
-    
-	var downloadFile = function(url, index){
-		var xhr = new XMLHttpRequest();
-		xhr.open("GET", url, true);
-		xhr.onreadystatechange = function() {
-			if (xhr.readyState == 4 && xhr.status == 200) {
-				context.styleSheetList[index] = {
-					url: url,
-					cssText: xhr.responseText
-				};
-                // console.log('index: ', index);
-                if(isAllCssFileReady()){
-                    onAllCssDownloadSuccess();
-                }
-			}
-		}
-		xhr.send(null);
-	}
-    
-    var getDownloadUrl = function(url){
-        url = url.trim();
-        if(/^https?:\/\//.test(url)){
-            return url;
-        }else{
-            return '';
-        }
-    }
-    
-	var loadLinkStyleSheet = function(){
-        var styleSheets = document.styleSheets;
-		var styleSheetList = context.styleSheetList = [];
-		styleSheetList[styleSheets.length - 1] = 0;
-		var sheet, url, hasDownload = false;
-		for(var i = 0, slen = styleSheets.length; i < slen; i++){
-			sheet = styleSheets[i];
-			if(sheet.ownerNode.constructor === HTMLStyleElement){//这是个style标签
-				styleSheetList[i] = {
-                    cssText: sheet.ownerNode.innerHTML
-                };
-			}else{/*  if(sheet.ownerNode.constructor === HTMLLinkElement) */
-				//link 标签, 发请求下载css文件
-				url = getDownloadUrl(sheet.href);//TODO url 路径检查
-				if(url){
-                    hasDownload = true;
-					downloadFile(url, i);
-				}else{
-                    styleSheetList[i] = 0;
-                }
-			}
-		}
-        if(!hasDownload){
-            onAllCssDownloadSuccess();
-        }
-	}
-    
-    var isStyleSheetNoChange = function(){//TODO 判断可以更智能点
-        return context.styleSheetList.length == document.styleSheets.length;
-    }
-	
-    var PROPERTY_SELECTOR_REGEX = /\[[^\[\]]*\]/g;
-    var CLEAR_SELECTOR_REGEX = /(:[^,\/]+?)( |,|$)/g;
-    var CLEAR_UNWANT_COMMA_REGEX = /(^,(\s*,)*)|((,\s*)*,\s*$)/g;
-    var PROPERTY_SELECTOR_CACHE_REGEX = /{%(\d+?)%}/g;
-    //清理选择器, 去掉伪类
-    var clearSelector = function(selector){
-        var count = 1, cache = {};
-        selector = selector.trim().replace(PROPERTY_SELECTOR_REGEX, function(m){
-            var id = count++;
-            cache[id] = m;
-            return '{%' + id + '%}';;
-        });
-        selector = selector.replace(CLEAR_SELECTOR_REGEX, '$2');
-        selector = selector.replace(CLEAR_UNWANT_COMMA_REGEX, '');
-        selector = selector.replace(PROPERTY_SELECTOR_CACHE_REGEX, function(m, s){
-            return cache[s];
-        });
-        return selector.trim();
-    }
-    //匹配所有key和值
-	var KEY_VALUE_REGEX = /\s*(.+?):\s*(.+?)(;|$)/g;
-    var convertCssText = function(cssText){
-        var style = {},
-			valueReg = KEY_VALUE_REGEX, valueMatch;
-        while(valueMatch = valueReg.exec(cssText)){
-            style[valueMatch[1]] = valueMatch[2];
-        }
-        return style;
-    }
-    var checkOverride = function(list, pro){
-        for(var i in list){
-            if(list[i].style[pro]){
-                list[i].style[pro].isOverride = true;
-            }
-        }
-    }
-    var convertStyle = function(styleList, originStyle){
-        var style = {};
-        for(var h in originStyle){
-            style[h] = {
-                value: originStyle[h]
-            }
-            checkOverride(styleList, h);
-        }
-        return style;
-    }
-    var NOT_SELECTOR_REGEX = /^\W+$/;
-    var isEmptySelector = function(selector){
-        if(!selector/*  || NOT_SELECTOR_REGEX.test(selector) */){
-            return true;
-        }
+var template = function(str, data){
+    var fn = !/\W/.test(str) ?
+      templateCache[str] = templateCache[str] ||
+        template(document.getElementById(str).innerHTML) :
+      new Function("obj",
+        "var p=[],print=function(){p.push.apply(p,arguments);};" +
+        "with(obj){p.push('" +
+        str
+          .replace(/[\r\t\n]/g, " ")
+          .split("<%").join("\t")
+          .replace(/((^|%>)[^\t]*)'/g, "$1\r")
+          .replace(/\t=(.*?)%>/g, "',$1,'")
+          .split("\t").join("');")
+          .split("%>").join("p.push('")
+          .split("\r").join("\\'")
+      + "');}return p.join('');");
+    return data ? fn( data ) : fn;
+};
+
+var isEmptyObject = function(obj){
+    for(var n in obj){
         return false;
     }
-	var getComputedStyle = function(el){
-        var styleSheetList = context.styleSheetList;
-        // console.log(styleSheetList);
-        var rule, style, selector;
+    return true;
+}
+
+var seed = 0;
+
+var getUid = function(){
+    return ++seed;
+}
+
+HTMLElement.prototype.css = function(style){
+    var el = this;
+    for(var i in style){
+        el.style[i] = style[i];
+    }
+}
+
+HTMLElement.prototype.show = function(){
+    this.css({ display: 'block' });
+}
+
+HTMLElement.prototype.hide = function(){
+    this.css({ display: 'none' });
+}
+
+HTMLElement.prototype.isShow = function(){
+    return this.style.display !== 'none';
+}
+
+var NOT_SELECTOR_REGEX = /^\W+$/;
+var isEmptySelector = function(selector){
+    if(!selector/*  || NOT_SELECTOR_REGEX.test(selector) */){
+        return true;
+    }
+    return false;
+}
+
+var PROPERTY_SELECTOR_REGEX = /\[[^\[\]]*\]/g;
+var CLEAR_SELECTOR_REGEX = /(:[^,\/]+?)( |,|$)/g;
+var CLEAR_UNWANT_COMMA_REGEX = /(^,(\s*,)*)|((,\s*)*,\s*$)/g;
+var PROPERTY_SELECTOR_CACHE_REGEX = /{%(\d+?)%}/g;
+//清理选择器, 去掉伪类
+var clearSelector = function(selector){
+    var count = 1, cache = {};
+    selector = selector.trim().replace(PROPERTY_SELECTOR_REGEX, function(m){
+        var id = count++;
+        cache[id] = m;
+        return '{%' + id + '%}';;
+    });
+    selector = selector.replace(CLEAR_SELECTOR_REGEX, '$2');
+    selector = selector.replace(CLEAR_UNWANT_COMMA_REGEX, '');
+    selector = selector.replace(PROPERTY_SELECTOR_CACHE_REGEX, function(m, s){
+        return cache[s];
+    });
+    return selector.trim();
+}
+var checkOverride = function(list, pro){
+    for(var i in list){
+        if(list[i].style[pro]){
+            list[i].style[pro].isOverride = true;
+        }
+    }
+}
+var convertStyle = function(styleList, originStyle){
+    var style = {};
+    for(var h in originStyle){
+        style[h] = {
+            value: originStyle[h]
+        }
+        checkOverride(styleList, h);
+    }
+    return style;
+}
+//匹配所有key和值
+var KEY_VALUE_REGEX = /\s*(.+?):\s*(.+?)(;|$)/g;
+var convertCssText = function(cssText){
+    var style = {},
+        valueReg = KEY_VALUE_REGEX, valueMatch;
+    while(valueMatch = valueReg.exec(cssText)){
+        style[valueMatch[1]] = valueMatch[2];
+    }
+    return style;
+}
+//****************************** view ************************
+var viewer = {
+    init: function(){
+        //****************** wraper ******************
+        var wraper = this.wraper = document.createElement('div');
+        wraper.id = WRAPER_ID;
+        document.body.appendChild(wraper);
+        wraper.hide();
+        //****************** popup ******************
+        var popup = this.popup = document.createElement('div');
+        popup.id = POPUPBOX_ID;
+        document.body.appendChild(popup);
+        popup.hide();
+        popup.show = function(x, y){
+            var top = y + 5;
+            var left = x + 5;
+            this.css({
+                display: 'block'
+            });
+            var rect = this.getBoundingClientRect();
+            var docWidth = document.documentElement.offsetWidth;
+            var docHeight = document.documentElement.offsetHeight;
+            if(rect.width + left >= docWidth){
+                left = docWidth - rect.width - 5;
+            }
+            if(rect.height + top >= docHeight){//这里还有优化的地方
+                top = docHeight - rect.height - 5;
+            }
+            if(left < 5){
+                left = 5;
+            }
+            if(top < 5){
+                top = 5;
+            }
+            this.css({
+                top: top + 'px',
+                left: left + 'px'
+            });
+        }
+        //*****************************************
+        this.onDocumentMouseOver = function(e){
+            var target = e.target;
+            var rect = target.getBoundingClientRect();
+            var scrollTop = Math.max(document.documentElement.scrollTop, document.body.scrollTop);
+            var scrollLeft = Math.max(document.documentElement.scrollLeft, document.body.scrollLeft);
+            wraper.css({
+                'width': rect.width + 'px',
+                'height': rect.height + 'px',
+                'top': rect.top + scrollTop + 'px',
+                'left': rect.left + scrollLeft + 'px',
+                'display': 'block'
+            });
+            var styleList = styleSheet.getComputedStyle(target);
+            if(styleList.length){
+                var html = template(POPUPBOX_HTML_TEMPLATE, {rules: styleList});
+                popup.innerHTML = html;
+                popup.show(e.pageX, e.pageY);
+            }else{
+                popup.hide();
+            }
+        }
+        this.onDocumentMouseMove = function(e){
+            if(popup.isShow()){
+                popup.show(e.pageX , e.pageY );
+            }
+        }
+        this.onDocumentKeydown = function(e){
+            if(e.keyCode === 27){
+                viewer.stop();
+            }
+        }
+        this._status = STATUS.INITED;
+    },
+    getStatus: function(){
+        return this._status || STATUS.UNINIT;
+    },
+    start: function(){
+        if(this._status !== STATUS.RUNNING){
+            document.body._oldCursor = document.body.style.cursor;
+            document.body.style.cursor = 'wait';
+            if(!this.getStatus()){
+                this.init();
+            }
+            styleSheet.load();
+            chrome.extension.sendRequest({type: 'event', param: {type: "ViewerStart"}, tabId: tabId});
+        }
+    },
+    stop: function(){
+        if(this._status === STATUS.RUNNING){
+            this.stopCatch();
+            chrome.extension.sendRequest({type: 'event', param: {type: "ViewerStop"}, tabId: tabId});
+        }
+    },
+    startCatch: function(){
+        this._status = STATUS.RUNNING;
+        document.body.style.cursor = document.body._oldCursor;
+        document.addEventListener('mouseover', this.onDocumentMouseOver, false);
+        document.addEventListener('mousemove', this.onDocumentMouseMove, false);
+        document.addEventListener('keydown', this.onDocumentKeydown, false);
+    },
+    stopCatch: function(){
+        this._status = STATUS.INITED;
+        this.wraper.hide();
+        this.popup.hide();
+        document.body.style.cursor = document.body._oldCursor;
+        document.removeEventListener('mouseover', this.onDocumentMouseOver, false);
+        document.removeEventListener('mousemove', this.onDocumentMouseMove, false);
+        document.removeEventListener('keydown', this.onDocumentKeydown, false);
+    }
+}
+//****************************** logic ************************
+var styleSheet = {
+    sheetMap: {},
+    sheetSeq: [],
+    check: function(){
+        var missArr = [];
+        for(var i = 0, ss, flag, item, index, id; ss = document.styleSheets[i]; i++){
+            flag = false;
+            for(var j = 0, s, index = 0; s = this.sheetSeq[j]; j++){
+                s = this.sheetMap[s];
+                index = j;
+                if(s.el && s.el === ss.ownerNode){
+                    flag = true;
+                    break;
+                }
+            }
+            if(!flag){
+                id = getUid();
+                item = {
+                    id: id,
+                    el: ss.ownerNode
+                };
+                this.sheetSeq.splice(index + 1, 0, id);
+                this.sheetMap[id] = item;
+                if(ss.ownerNode.constructor === HTMLStyleElement){
+                    item.type = 'style';
+                    item.text = ss.ownerNode.innerHTML;
+                }else{
+                    item.type = 'link';
+                    item.url = ss.href;
+                }
+                // missArr[id] = {
+                    // type: item.type,
+                    // url: item.url,
+                    // text: item.text
+                // };
+                missArr.push({
+                    id: id,
+                    type: item.type,
+                    url: item.url,
+                    text: item.text
+                });
+            }
+        
+        }//end of: for document.styleSheets
+        return missArr;
+    },
+    load: function(){
+        var sheets = this.check();
+        if(isEmptyObject(sheets)){
+            viewer.startCatch();
+        }else{//还有没转换的样式表
+            chrome.extension.sendRequest({type: 'method', param: {method: "translateSheets", data: sheets}, tabId: tabId});
+        }
+    },
+    eatData: function(sheets){
+        for(var i = 0, s; s = sheets[i]; i++){
+            this.sheetMap[s.id].text = s.text;
+            this.sheetMap[s.id].sheet = s.sheet;
+            var context = this;
+            var eatImports = function(imports, pid){
+                var index = context.sheetSeq.indexOf(pid);
+                for(var j = 0, im, uid; im = imports[j]; j++){
+                    uid = getUid();
+                    im.id = uid;
+                    context.sheetMap[uid] = im;
+                    context.sheetSeq.splice(index, 0, uid);
+                    index++;
+                    if(im.imports){
+                        eatImports(im.imports, uid);
+                    }
+                }
+                
+            }
+            if(s.imports){
+                eatImports(s.imports, s.id);
+                // var index = this.sheetSeq.indexOf(s.id);
+                // for(var j = 0, im, uid; im = s.imports[j]; j++){
+                    // uid = getUid();
+                    // im.id = uid;
+                    // this.sheetMap[uid] = im;
+                    // this.sheetSeq.splice(index, 0, uid);
+                    // index++;
+                // }
+            }
+        }
+        viewer.startCatch();
+    },
+    getComputedStyle: function(el){
         var cpStyleList = [];
-        for(var i in styleSheetList){
-            for(var j in styleSheetList[i].styleList){
-                rule = styleSheetList[i].styleList[j];
+        for(var i = 0, s; s = this.sheetSeq[i]; i++){
+            s = this.sheetMap[s];
+            if(!s.sheet){
+                continue;
+            }
+            for(var j = 0, rule, selector, style; rule = s.sheet[j]; j++){
                 selector = clearSelector(rule.selector);
-                try{
                 if(isEmptySelector(selector)){
                     continue;
                 }
+try{
                 if(el.webkitMatchesSelector(selector)){
                     style = convertStyle(cpStyleList, rule.styleList);
                     if(!isEmptyObject(style)){
@@ -231,191 +340,73 @@ function CssViewer(){
                         });
                     }
                 }
-                }catch(e){
-                    console.error(e, i, j, 'selector','[' + selector + ']');
-                }
+}catch(e){
+    console.error(e, i, j, 'selector','[' + selector + ']');
+}
             }
         }
-		var selfStyle = convertCssText(el.style.cssText);
+		var selfStyle = convertCssText(el.getAttribute('style'));
         selfStyle = convertStyle(cpStyleList, selfStyle);
         if(!isEmptyObject(selfStyle)){
             cpStyleList.push({
-                selector: '(element.style)',
+                selector: 'element.style',
                 style: selfStyle
             });
         }
         return cpStyleList;
-	}
-	
-	
-    //**********************************************************************************************
-    //  view
-    //**********************************************************************************************
-    
-    HTMLElement.prototype.css = function(style){
-		var el = this;
-		for(var i in style){
-			el.style[i] = style[i];
-		}
-	}
-    
-    var getScrollTop = function(){
-		return Math.max(document.documentElement.scrollTop, document.body.scrollTop);
-	}
-	
-	var getScrollLeft = function(){
-		return Math.max(document.documentElement.scrollLeft, document.body.scrollLeft);
-	}
-    
-    var getWraper = function(createFlag){
-		var wraper = document.getElementById(WRAPER_ID);
-		if(!wraper && createFlag){
-			wraper = document.createElement('div');
-			wraper.id = WRAPER_ID;
-			wraper.style.cssText = WRAPER_STYLE_TEXT;
-			document.body.appendChild(wraper);
-		}
-		return wraper;
-	}
-	
-	var hideWraper = function(){
-		var wraper = getWraper();
-		if(wraper){
-			wraper.css({display: 'none' });
-		}
-	}
-	
-	var getPopupBox = function(createFlag){
-		var popup = document.getElementById(POPUPBOX_ID);
-		if(!popup && createFlag){
-			popup = document.createElement('div');
-			popup.id = POPUPBOX_ID;
-			document.body.appendChild(popup);
-		}
-		return popup;
-	}
-    
-	var showPopupBox = function(x, y){
-		var popup = getPopupBox();
-        var top = y + 5;
-        var left = x + 5;
-		popup.css({
-			// top: '-10000em',
-			// left: '-10000em',
-			display: 'block'
-		});
-        var rect = popup.getBoundingClientRect();
-        var docWidth = document.documentElement.offsetWidth;
-        var docHeight = document.documentElement.offsetHeight;
-        if(rect.width + left >= docWidth){
-            left = docWidth - rect.width - 5;
-        }
-        if(rect.height + top >= docHeight){//这里还有优化的地方
-            top = docHeight - rect.height - 5;
-        }
-        if(left < 5){
-            left = 5;
-        }
-        if(top < 5){
-            top = 5;
-        }
-        popup.css({
-            top: top + 'px',
-			left: left + 'px'
-		});
-        context.popupBoxShowing = true;
-	}
-    
-    var hidePopupBox = function(){
-        var popup = getPopupBox();
-        if(popup){
-            popup.css({ display: 'none' });
-        }
-        context.popupBoxShowing = false;
     }
-    
-    var onDocumentMouseOver = function(e){
-        var target = e.target;
-        var rect = target.getBoundingClientRect();
-        var wraper = getWraper(true);
-		var scrollTop = getScrollTop();
-		var scrollLeft = getScrollLeft();
-        wraper.css({
-            'width': rect.width + 'px',
-            'height': rect.height + 'px',
-            'top': rect.top + scrollTop + 'px',
-            'left': rect.left + scrollLeft + 'px',
-            'display': 'block'
-        });
-		var styleList = getComputedStyle(target);
-        // console.log('element style:');
-        // console.log(styleList);
-        if(styleList.length){
-            var popup = getPopupBox(true);
-            var html = template(POPUPBOX_HTML_TEMPLATE, {rules: styleList});
-            popup.innerHTML = html;
-            showPopupBox(e.pageX, e.pageY);
-        }else{
-            hidePopupBox();
-        }
-    }
-    var onDocumentMouseMove = function(e){
-        if(context.popupBoxShowing){
-            showPopupBox(e.pageX , e.pageY );
-        }
-    }
-    
-    var onStyleSheetReady = function(){
-        document.body.style.cursor = document.body._originCursor;
-        document.addEventListener('mouseover', onDocumentMouseOver, false);
-        document.addEventListener('mousemove', onDocumentMouseMove, false);
-    }
-    
-	this.start = function(){
-        if(!this._isStart){
-            this._isStart = true;
-            if(isStyleSheetNoChange()){
-                onStyleSheetReady();
+};
+///////////////////////////////////////////////////////////////////////////////////////////////////
+var handleMethod = function(param){
+    switch(param.method){
+        case 'queryStatus':
+            return {status: viewer.getStatus()};
+        case 'run':
+            viewer.start();
+            break;
+        case 'stop':
+            viewer.stop();
+            break;
+        case 'toggleRun':
+            if(viewer.getStatus() == STATUS.RUNNING){
+                viewer.stop();
             }else{
-                //TODO 可以换成更优雅的
-                document.body._originCursor = document.body.style.cursor;
-                document.body.style.cursor = 'wait';
-                loadLinkStyleSheet();
+                viewer.start();
             }
-        }
-    }
-	
-	this.stop = function(){
-        if(this._isStart){
-            this._isStart = false;
-            hideWraper();
-            hidePopupBox();
-            document.removeEventListener('mouseover', onDocumentMouseOver, false);
-            document.removeEventListener('mousemove', onDocumentMouseMove, false);
-        }
-    }
-    this.isStart = function(){
-        return this._isStart;
+            break;
+        default:
+            break;
     }
 }
 
-(function(){
-	if(!window.getCssViewer){
-		window.getCssViewer = function(){
-			if(!window.__css_viewer){
-				window.__css_viewer = new CssViewer();
-			}
-			return window.__css_viewer;
-		}
-	}
-	var viewer = window.getCssViewer();
-	if(viewer.isStart()){
-		viewer.stop();
-	}else{
-		viewer.start();
-	}
-})();
+var handleData = function(param){
+    switch(param.type){
+        case 'StyleSheets':
+            styleSheet.eatData(param.data);
+            break;
+        default:
+            break;
+    }
+}
 
+//////////////////////////////////////////////////////////////////////////////////
+chrome.extension.onRequest.addListener(function(request, sender, callback){
+    tabId = request.tabId;
+    var result;
+    if(request.type === 'method'){
+        result = handleMethod(request.param);
+    }else if(request.type === 'data'){
+        result = handleData(request.param);
+    }
+    result = result || {};
+    result.tabId = tabId;
+    callback(result);
+});
+
+window.onerror = function(){
+    viewer.stop();
+}
+    
 //end coding
 })(window, document);
 //////////////////////////////////

@@ -11,7 +11,7 @@
 	<property name="zipname" value="build.zip"/>
     
 	<property name="jsFileList" value="content.js, cssparser.js, background.js"/>
-	<property name="cssFileList" value="popup.css"/>
+	<property name="cssFileList" value="content.css"/>
     
     <taskdef name="foreach" classname="net.sf.antcontrib.logic.ForEach" classpath="lib/ant-contrib-1.0b3.jar" />
     
