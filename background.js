@@ -194,6 +194,7 @@ var translateSheets = function(sheets, tabId){
             s.status = STATUS.UNSUPPORT;
         }
     }
+    _gaq.push(['_trackEvent', 'translate', 'count', '']);
 }
 
 ////////////////////////// event //////////////////////////////////////////////////////////////////////
@@ -204,6 +205,7 @@ var handleEvent = function(event, tabId){
             chrome.tabs.getSelected(null, function(tab) {
                 if(tabId === tab.id){
                     setIconState(true, tabId);
+                    _gaq.push(['_trackEvent', 'browserAction', 'run', 'run viewer']);
                 }
             });
             break;
@@ -211,6 +213,7 @@ var handleEvent = function(event, tabId){
             chrome.tabs.getSelected(null, function(tab) {
                 if(tabId === tab.id){
                     setIconState(false, tabId);
+                    _gaq.push(['_trackEvent', 'browserAction', 'stop', 'stop viewer']);
                 }
             });
             break;
@@ -233,6 +236,12 @@ var handleMethod = function(param, tabId){
 ////////////// for init //////////////////////////////
 
 chrome.browserAction.onClicked.addListener(function(tab){
+    if( tab.url.indexOf("https://chrome.google.com") === 0 || tab.url.indexOf("chrome://") === 0 ) {
+        _gaq.push(['_trackEvent', 'browserAction', 'clicknotvalid', 'click below chrome store']);
+        alert( "Sorry, it can't work at chrome store and extension pages." );
+        return;
+    }
+    //_gaq.push(['_trackEvent', 'browserAction', 'click', 'a valid click']);
     chrome.tabs.sendRequest(tab.id, {type: 'method', param: {method: "toggleRun"}, tabId: tab.id});
 });
 

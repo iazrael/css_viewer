@@ -1,6 +1,6 @@
 {
     "name": "CSS Viewer",
-    "version": "2.0",
+    "version": "2.1",
     
     "description": "A different and stronger CSS Viewer",
     "icons": {
@@ -16,10 +16,12 @@
     "content_scripts": [{
         "matches": ["http://*/*", "https://*/*"],
         "js": ["content.js"],
-        "css": ["content.css"]
+        "css": ["content.css"],
+        "all_frames": true
     }],
     
     "background_page": "background.html",
+    "options_page": "options.html",
     "permissions": [
         "tabs", "http://*/*", "https://*/*"
     ]

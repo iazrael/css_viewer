@@ -41,6 +41,22 @@ var isEmptyObject = function(obj){
     return true;
 }
 
+var isIframe = function(){
+    return window.top !== window;
+}
+
+var isViewerEnable = function(){
+    if(isIframe()){
+        return localStorage['enableIframe'] === 1;
+    }else{
+        return true;
+    }
+}
+
+if(!isViewerEnable()){//是iframe, 且没有启用, 返回
+    return false;
+}
+
 var seed = 0;
 
 var getUid = function(){
