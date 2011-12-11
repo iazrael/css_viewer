@@ -25,7 +25,7 @@ p > span{
 <body>
 <div id="wraper">
     <p>
-        <input type="checkbox" name="enableIframe" id="enableIframe" /><label for="enableIframe">在iframe中启用(beta, not stable)</label><span>refresh the pages to work</span>
+        <input type="checkbox" name="enableIframe" id="enableIframe" /><label for="enableIframe">在iframe中启用(beta, not stable)</label><span>refresh those pages to work</span>
     </p>
 </div>
 <script>
@@ -35,7 +35,10 @@ var $ = function(id){
     return document.getElementById(id);
 }
 
-$('enableIframe').onchange = function(e){
+var enableIframe = $('enableIframe');
+enableIframe.checked = parseInt(localStorage['enableIframe']) === 1;
+
+enableIframe.onchange = function(e){
     if(this.checked){
         localStorage['enableIframe'] = 1;
     }else{

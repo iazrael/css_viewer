@@ -15,6 +15,10 @@ var getUid = function(){
     return ++seed;
 }
 
+var getOption = function(key){
+    return localStorage[key];
+}
+
 //********************* ui ******************************
 
 var setIconState = function(isRunning, tabId){
@@ -228,6 +232,8 @@ var handleMethod = function(param, tabId){
             param.data.referUrl = param.referUrl;
             translateSheets(param.data, tabId);
             break;
+        case 'getOption':
+            return getOption(param.key);
         default:
             break;
     }
@@ -259,7 +265,8 @@ chrome.extension.onRequest.addListener(function(request, sender, callback){
         handleEvent(request.param, request.tabId);
     }else if(request.type === 'method'){
         request.param.referUrl = sender.tab.url;
-        handleMethod(request.param, request.tabId);
+        var result = handleMethod(request.param, request.tabId);
+        callback && callback(result);
     }
 });
 

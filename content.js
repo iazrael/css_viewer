@@ -12,6 +12,11 @@ var POPUPBOX_HTML_TEMPLATE = '<% for(var i = rules.length - 1; i >= 0; i--){ %><
 
 var tabId;
 
+var enableIframe;
+
+chrome.extension.sendRequest({type: 'method', param: {method: "getOption", key: 'enableIframe'}, tabId: tabId}, function(data){
+    enableIframe = parseInt(data);
+});
 //****************************** tool ************************
 var templateCache = {};
 	
@@ -47,15 +52,12 @@ var isIframe = function(){
 
 var isViewerEnable = function(){
     if(isIframe()){
-        return localStorage['enableIframe'] === 1;
+        return enableIframe === 1;
     }else{
         return true;
     }
 }
 
-if(!isViewerEnable()){//是iframe, 且没有启用, 返回
-    return false;
-}
 
 var seed = 0;
 
@@ -193,6 +195,7 @@ var viewer = {
                 var html = template(POPUPBOX_HTML_TEMPLATE, {rules: styleList});
                 popup.innerHTML = html;
                 popup.show(e.pageX, e.pageY);
+                //TODO 隐藏其他iframe的面板
             }else{
                 popup.hide();
             }
@@ -200,6 +203,7 @@ var viewer = {
         this.onDocumentMouseMove = function(e){
             if(popup.isShow()){
                 popup.show(e.pageX , e.pageY );
+                //TODO 隐藏其他iframe的框
             }
         }
         this.onDocumentKeydown = function(e){
@@ -213,6 +217,9 @@ var viewer = {
         return this._status || STATUS.UNINIT;
     },
     start: function(){
+        if(!isViewerEnable()){
+            return false;
+        }
         if(this._status !== STATUS.RUNNING){
             document.body._oldCursor = document.body.style.cursor;
             document.body.style.cursor = 'wait';
@@ -418,6 +425,7 @@ chrome.extension.onRequest.addListener(function(request, sender, callback){
     result.tabId = tabId;
     callback(result);
 });
+
 
 window.onerror = function(){
     viewer.stop();
