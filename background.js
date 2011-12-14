@@ -19,6 +19,7 @@ var getOption = function(key){
     return localStorage[key];
 }
 
+
 //********************* ui ******************************
 
 var setIconState = function(isRunning, tabId){
@@ -59,9 +60,8 @@ var mergeUrl = function(root, url){
     url = root + url;
     return url;
 }
-var getUrl = function(url, ret, tabId){
+var getUrl = function(url, ret, sheets){
     var root;
-    var sheets = cacheMap[tabId];
 try{
     url = getImportFile(url);
     if(checkUrl(url)){
@@ -108,12 +108,11 @@ var checkSheets = function(sheets){
     return true;
 }
 
-var isAllCssTranslated = function(tabId){
-    var sheets = cacheMap[tabId];
+var isAllCssTranslated = function(sheets){
     return checkSheets(sheets);
 }
 
-var convertJsStyleSheet = function(originSheet, tabId, sheet, result){
+var convertJsStyleSheet = function(originSheet, sheets, sheet, result){
     sheet = sheet || [];
     for(var i = 0, rule, styleList; rule = originSheet.cssRules[i]; i++){
         if(rule.type === 1){//type == 1, 正常样式
@@ -132,17 +131,17 @@ var convertJsStyleSheet = function(originSheet, tabId, sheet, result){
             });
         }else if(rule.type === 4 && MEDIA_REGEX.test(rule.media + '')){
             //type == 4 @media
-            convertJsStyleSheet(rule, tabId, sheet, result);
+            convertJsStyleSheet(rule, sheets, sheet, result);
         }else if(rule.type === 3 && MEDIA_REGEX.test(rule.media + '')){//@import
-            var url = getUrl(rule.href, result, tabId);
-            if(url && cacheMap[tabId].download[url] !== 1){
+            var url = getUrl(rule.href, result, sheets);
+            if(url && sheets.download[url] !== 1){
                 var retItem = {
                     type: 'import',
                     url: url
                 };
                 result.imports = result.imports || [];
                 result.imports.push(retItem);
-                downloadCss(retItem, tabId);
+                downloadCss(retItem, sheets);
             }
         }else {
             //if(rule.type === 2){//@charset
@@ -152,23 +151,22 @@ var convertJsStyleSheet = function(originSheet, tabId, sheet, result){
     return sheet;
 }
 
-var translateSheet = function(originSheet, tabId){
+var translateSheet = function(originSheet, sheets){
     var cssText = pretreatCssText(originSheet.text);
     if(cssText.trim()){
         var sheet = parser.parse(cssText, false, false);
-        originSheet.sheet = convertJsStyleSheet(sheet, tabId, null, originSheet);
+        originSheet.sheet = convertJsStyleSheet(sheet, sheets, null, originSheet);
     }
     originSheet.status = STATUS.TRANSLATED;
     
-    if(isAllCssTranslated(tabId)){
-        var sheets = cacheMap[tabId];
-        chrome.tabs.sendRequest(tabId, {type: 'data', param: {type: 'StyleSheets', data: sheets}, tabId: tabId});
+    if(isAllCssTranslated(sheets)){
+        chrome.tabs.sendRequest(sheets.tabId, {type: 'data', param: {type: 'StyleSheets', data: sheets, uid: sheets.uid}, tabId: sheets.tabId});
     }
 }
 
-var downloadCss = function(originSheet, tabId){
+var downloadCss = function(originSheet, sheets){
     originSheet.status = STATUS.LOADING;
-    cacheMap[tabId].download[originSheet.url] = 1;
+    sheets.download[originSheet.url] = 1;
     var xhr = new XMLHttpRequest();
     xhr.open("GET", originSheet.url, true);
     xhr.onreadystatechange = function() {
@@ -180,25 +178,24 @@ var downloadCss = function(originSheet, tabId){
                 originSheet.text = xhr.responseText || '';
             }
             originSheet.status = STATUS.LOADED;
-            translateSheet(originSheet, tabId);
+            translateSheet(originSheet, sheets);
         }
     }
     xhr.send(null);
 }
 
-var translateSheets = function(sheets, tabId){
+var translateSheets = function(sheets){
     sheets.download = {};
-    cacheMap[tabId] = sheets;
     for(var i = 0, s; s = sheets[i]; i++){
         if(s.type == 'style'){
-            translateSheet(s, tabId);
+            translateSheet(s, sheets);
         }else if(checkUrl(s.url)){
-            downloadCss(s, tabId);
+            downloadCss(s, sheets);
         }else{
             s.status = STATUS.UNSUPPORT;
         }
     }
-    _gaq.push(['_trackEvent', 'translate', 'count', '']);
+    // _gaq.push(['_trackEvent', 'translate', 'count', '']);
 }
 
 ////////////////////////// event //////////////////////////////////////////////////////////////////////
@@ -221,6 +218,9 @@ var handleEvent = function(event, tabId){
                 }
             });
             break;
+        case 'ViewerShow':
+            chrome.tabs.sendRequest(tabId, {type: 'event', param: {type: "ViewerShow", uid: event.uid}, tabId: tabId});
+            break;
         default:
             break;
     }
@@ -229,11 +229,16 @@ var handleEvent = function(event, tabId){
 var handleMethod = function(param, tabId){
     switch(param.method){
         case 'translateSheets':
-            param.data.referUrl = param.referUrl;
-            translateSheets(param.data, tabId);
+            var sheets = param.data;
+            sheets.referUrl = param.referUrl;
+            sheets.uid = param.uid;
+            sheets.tabId = tabId;
+            translateSheets(sheets);
             break;
         case 'getOption':
             return getOption(param.key);
+        case 'contentReady':
+            return getUid();
         default:
             break;
     }
@@ -264,9 +269,18 @@ chrome.extension.onRequest.addListener(function(request, sender, callback){
     if(request.type === 'event'){
         handleEvent(request.param, request.tabId);
     }else if(request.type === 'method'){
-        request.param.referUrl = sender.tab.url;
-        var result = handleMethod(request.param, request.tabId);
-        callback && callback(result);
+        if(request.param.method === 'queryRunStatus'){
+            var tabId = request.tabId || sender.tab.id;
+            chrome.tabs.sendRequest(tabId, {type: 'method', param: {method: "queryStatus"}, tabId: tabId}, function(response) {
+                if(response && tabId === response.tabId){
+                    callback(response.status);
+                }
+            });
+        }else{
+            request.param.referUrl = sender.tab.url;
+            var result = handleMethod(request.param, request.tabId);
+            callback && callback(result);
+        }
     }
 });
 
