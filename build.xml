@@ -10,7 +10,7 @@
 	<property name="charset" value="utf-8"/>
 	<property name="zipname" value="build.zip"/>
     
-	<property name="jsFileList" value="content.js, cssparser.js, background.js"/>
+	<property name="jsFileList" value="content.js, cssparser.js, background.js, ga.js"/>
 	<property name="cssFileList" value="content.css"/>
     
     <taskdef name="foreach" classname="net.sf.antcontrib.logic.ForEach" classpath="lib/ant-contrib-1.0b3.jar" />
@@ -26,7 +26,7 @@
             <fileset dir="${basedir}">
                 <include name="manifest.json" />
                 <include name="background.html" />
-                <!-- <include name="popup.css" /> -->
+                <include name="options.html" />
             </fileset>
         </copy>
         <copy todir="${temp}/icons">

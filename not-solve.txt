@@ -4,7 +4,7 @@ DONE--base64图片引起的问题
 DONE-图标要有变化
 性能优化
 DONE--样式合并
-iframe支持
+DONE--iframe支持(beta)
 加载提示
 DONE-@import
 处理动态插入的style和link
