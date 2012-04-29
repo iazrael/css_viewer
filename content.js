@@ -140,6 +140,8 @@ function CSSViewer(uid){
             document.body.appendChild(popup);
             popup.hide();
             popup.show = function(x, y){
+                var scrollTop = Math.max(document.documentElement.scrollTop, document.body.scrollTop);
+                var scrollLeft = Math.max(document.documentElement.scrollLeft, document.body.scrollLeft);
                 var top = y + 5;
                 var left = x + 5;
                 this.css({
@@ -148,11 +150,12 @@ function CSSViewer(uid){
                 var rect = this.getBoundingClientRect();
                 var docWidth = document.documentElement.offsetWidth;
                 var docHeight = document.documentElement.offsetHeight;
+
                 if(rect.width + left >= docWidth){
                     left = docWidth - rect.width - 5;
                 }
-                if(rect.height + top >= docHeight){//这里还有优化的地方
-                    top = docHeight - rect.height - 5;
+                if(rect.height + top >= docHeight + scrollTop){//这里还有优化的地方
+                    top = docHeight + scrollTop - rect.height - 5;
                 }
                 if(left < 5){
                     left = 5;
